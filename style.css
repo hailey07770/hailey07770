@@ -1,0 +1,755 @@
+/* 1. 포인트 컬러 변수 설정 */
+:root {
+  --panel-height: 180px;  /* ← 원하는 공통 높이 */
+  --tomato-red: #F24C3D;
+  --tomato-green: #7B8E61;
+  --bg-color: #FFFFFF;
+  --text-color: #4A4A4A;
+  --shadow-red: #D13E30;
+  --shadow-green: #5D6C4A;
+}
+
+/* 2. 폰트 및 기본 설정 */
+@font-face {
+  font-family: 'NeoDunggeunmo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.3/NeoDunggeunmo.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+* {
+  font-family: 'NeoDunggeunmo', sans-serif;
+  letter-spacing: -0.5px;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* 입력 필드는 드래그 가능하도록 예외 처리 */
+input, textarea {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle, rgba(242, 76, 61, 0.25) 2px, transparent 2px),
+    linear-gradient(135deg, #fef8d2 0%, #ffe8b8 100%);
+  background-size: 30px 30px, 100%;
+  color: var(--text-color);
+  padding: 0;
+  overflow: hidden;  
+}
+
+.container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1500px;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  padding: 40px 20px;
+  box-shadow: 0 8px 25px rgba(242, 76, 61, 0.2);
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  margin: auto 0;
+}
+
+/* 3. 설정 영역 */
+.settings {
+  box-sizing: border-box;  
+  align-items: center;  
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 10px;
+  padding: 25px;
+  background: linear-gradient(135deg, #fff 0%, #fefefe 100%);
+  border-radius: 20px;
+  box-shadow:
+    0 12px 40px rgba(238, 201, 198, 0.1),
+    0 8px 25px rgba(243, 116, 105, 0.1),
+    0 4px 15px rgba(242, 76, 61, 0.1);
+  transition: all 0.3s ease;
+}
+
+/* ✅ (핵심 리팩터링) range 제외한 input만 공통 스타일 적용 */
+select,
+input:not([type="range"]) {
+  padding: 0 15px;
+  height: 55px;
+  border: 3px solid var(--tomato-red);
+  border-radius: 12px;
+  outline: none;
+  background-color: #fef8d2;
+  font-size: 18px;
+  color: #000;
+  display: inline-flex;
+  align-items: center;
+  text-align: left;
+  transition: all 0.3s ease;
+}
+
+select:hover,
+input:not([type="range"]):hover {
+  border-color: var(--shadow-red);
+  box-shadow: 0 4px 20px rgba(254, 248, 210, 0.7), 0 2px 10px rgba(255, 232, 184, 0.5);
+  transform: translateY(-2px);
+}
+
+select:focus,
+input:not([type="range"]):focus {
+  border-color: var(--shadow-red);
+  box-shadow: 0 4px 25px rgba(254, 248, 210, 0.8), 0 2px 12px rgba(255, 232, 184, 0.6);
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23F24C3D' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 15px center;
+  background-size: 18px;
+  padding-right: 45px;
+  cursor: pointer;
+}
+
+input:not([type="range"]) {
+  width: 280px;
+}
+input:not([type="range"])::placeholder {
+  color: #8B8370;
+}
+
+/* 4. 버튼(전역) */
+button {
+  height: 55px;
+  padding: 25px 25px;
+  background-color: white;
+  border: 3px solid var(--tomato-red);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  font-size: 18px;
+  color: var(--tomato-red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden; /* 이게 드롭다운 잘림 원인이 될 수 있음 */
+}
+
+button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fef8d2 0%, #ffe8b8 100%);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+  opacity: 0.6;
+}
+
+button:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* apply/reset 버튼만 개별 */
+#apply-btn {
+  background-color: var(--tomato-red);
+  color: white;
+}
+#apply-btn:hover {
+  background-color: var(--shadow-red);
+  border-color: var(--shadow-red);
+  transform: translateY(-3px);
+}
+#apply-btn:active { transform: translateY(-1px); }
+
+#reset-btn {
+  color: var(--text-color);
+  border-color: var(--text-color);
+}
+#reset-btn:hover {
+  background-color: #F5F5F5;
+  transform: translateY(-3px);
+}
+#reset-btn:active { transform: translateY(-1px); }
+
+/* 5. 상태 메시지 */
+.status {
+  font-size: 2.2rem;
+  color: var(--tomato-red);
+  height: 100px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  line-height: 1;
+  overflow: hidden;
+  animation: fadeIn 0.5s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 6. 세트 카운터 */
+.set-counter {
+  font-size: 1.4rem;
+  color: var(--tomato-red);
+  font-weight: bold;
+  margin-top: -10px;
+  padding: 12px 25px;
+  background-color: #fef8d2;
+  border: 2px solid var(--tomato-red);
+  border-radius: 20px;
+  box-shadow: 0 6px 25px rgba(254, 248, 210, 0.6), 0 4px 15px rgba(255, 232, 184, 0.4);
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.3s ease;
+}
+
+/* 7. 토마토 */
+.tomato-wrapper {
+  position: relative;
+  width: 364px;
+  height: 364px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.tomato {
+  margin-top: -90px;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 364px;
+  height: 364px;
+  transition: transform 0.3s ease;
+}
+
+.tomato:hover { transform: scale(1.05); }
+.tomato:active { transform: scale(0.98); }
+.tomato.running { animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse {
+  0%,100% { transform: scale(1); }
+  50%     { transform: scale(1.07); }
+}
+.tomato-img {
+
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  filter: saturate(105%) opacity(72%) blur(2.0px) drop-shadow(0 12px 40px rgba(222, 48, 32, 0.4)) drop-shadow(0 8px 50px rgba(255, 209, 204, 0.4));
+}
+
+.timer-display {
+  color: white;
+  font-size: 4rem;
+  position: absolute;
+  z-index: 2;
+  text-shadow: 3px 3px 0px rgba(0,0,0,0.2);
+  pointer-events: none;
+  transform: translateY(15px);
+}
+.guide {
+  margin-top: -60px;
+  color: var(--text-color);
+  font-size: 1.1rem;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+.guide2 {
+  margin-top: -30px;
+  color: var(--text-color);
+  font-size: 1.1rem;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.guide:hover { opacity: 1; }
+.guide2:hover { opacity: 1; }
+
+/* 8. 토스트 */
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  background: #fff;
+  color: var(--text-color);
+  border: 4px solid var(--tomato-red);
+  border-radius: 16px;
+  box-shadow: 10px 10px 25px rgba(0,0,0,0.2);
+  padding: 21px 25px 25px;
+  font-size: 1.3rem;
+  line-height: 1.20;
+  width: max-content;
+  max-width: none;
+  min-width: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(12px);
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+  overflow: hidden;
+  white-space: nowrap; 
+}
+.toast.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.toast::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+  width: 100%;
+  background: var(--tomato-red);
+  opacity: 0.9;
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.toast.show::after {
+  animation: toastProgress 2.5s linear forwards;
+}
+@keyframes toastProgress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+
+/* 9. 푸터 */
+.footer {
+  padding: 20px;
+  font-size: 0.9rem;
+  color: #999;
+  text-align: center;
+  border-top: 1px solid #EFEFEF;
+  width: 100%;
+  transition: color 0.3s ease;
+}
+.footer:hover { color: #666; }
+
+/* =========================================
+   10. 코너 장식 (PC 전용)
+========================================= */
+.corner-decoration {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 250px;  /* 이미지 크기에 맞게 조정 */
+  height: auto;
+  pointer-events: none;  /* 클릭 방지 */
+  z-index: 1;  /* 토스트(1000)보다 낮게 */
+  opacity: 1;  /* 살짝 투명하게 */
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: opacity 0.3s ease;
+}
+
+/* =========================================
+   11. 노트 장식 (PC 전용 - 왼쪽)
+========================================= */
+.note-decoration {
+  position: fixed;
+  left: 40px;
+  top: 320px;  /* 화면 중앙 높이 */
+  transform: translateY(-50%) rotate(-20deg);  /* 중앙 정렬 + 45도 반시계방향 회전 */
+  width: 180px;  /* 이미지 크기에 맞게 조정 */
+  height: auto;
+  pointer-events: none;  /* 클릭 방지 */
+  z-index: 1;  /* 토스트(1000)보다 낮게 */
+  opacity: 1;  /* 살짝 투명하게 */
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  filter: saturate(1.9);
+}
+
+/* =========================================
+   12. 노트 장식 2 (PC 전용 - 오른쪽 상단)
+========================================= */
+.note-decoration-2 {
+  position: fixed;
+  left: 150px;
+  top: 210px;  /* 화면 중앙 높이 */
+  transform: translateY(-50%) rotate(-20deg);  /* 중앙 정렬 + 45도 반시계방향 회전 */
+  width: 100px;  /* 이미지 크기에 맞게 조정 */
+  height: auto;
+  pointer-events: none;  /* 클릭 방지 */
+  z-index: 1;  /* 토스트(1000)보다 낮게 */
+  opacity: 1;  /* 살짝 투명하게 */
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  filter: saturate(1.9);
+}
+
+/* =========================================
+   Rain player + Volume (중복 제거/통합)
+========================================= */
+.rain-player {
+  position: absolute;
+  top: -35px;
+  left: 20px;
+  width: 300px;
+  min-height: 80px;
+  padding: 50px 16px 15px;
+  background: linear-gradient(135deg, #fff7d9 0%, #fef8d2 100%);
+  border-radius: 24px;
+  border: 3px solid var(--tomato-red);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.rain-title {
+  padding: 10px;
+  line-height: 1.05;  
+  flex: 1;
+  min-width: 0;
+  font-size: 1.0rem;
+  font-weight: bold;
+  color: #444;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ✅ 공통 “원형 아이콘 버튼” (rain/mute 모두 통일) */
+.rain-btn,
+.volume-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 16px;
+  border-width: 2px;
+  line-height: 1;
+  padding: 0;
+}
+
+/* hover 효과 */
+.rain-btn:hover { transform: scale(1.1); }
+.volume-icon:hover {
+  background: #fef8d2;
+  transform: scale(1.05);
+}
+
+.volume-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+  z-index: 4000;
+
+}
+
+
+/* ✅ 드롭다운: 버튼 아래로 */
+.volume-dropdown {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 46px; /* 버튼(36px) + 간격(10px) */
+  width: 56px;
+  height: 190px;
+
+  background: white;
+  border: 2px solid #f24c3d;
+  border-radius: 16px;
+  padding: 12px 10px;
+  box-shadow: 0 8px 25px rgba(242, 76, 61, 0.2);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s ease, visibility 0.18s ease;
+
+  z-index: 5000;
+}
+
+.volume-control.open .volume-dropdown {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+
+/* ✅ range 전용(볼륨 슬라이더에만 적용) */
+input[type="range"].volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 160px;     /* 세로 길이로 보일 길이 */
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: block;
+  box-shadow: none;
+  cursor: pointer;
+
+  /* 위=최소, 아래=최대 */
+  transform: rotate(90deg);
+  transform-origin: 50% 50%;
+  --p: 0%; /* ✅ 채움(진행) 비율 */
+}
+
+/* Webkit */
+.volume-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--tomato-red) 0%,
+    var(--tomato-red) var(--p),
+    #f1f1f1 var(--p),
+    #f1f1f1 100%
+  );
+  border: 1px solid #ccc;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--tomato-red);
+  border: 2px solid #fff;
+  margin-top: -6px;
+}
+
+/* Firefox */
+.volume-slider::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--tomato-red) 0%,
+    var(--tomato-red) var(--p),
+    #f1f1f1 var(--p),
+    #f1f1f1 100%
+  );
+  border: 1px solid #ccc;
+}
+.volume-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--tomato-red);
+  border: 2px solid #fff;
+}
+
+
+
+/* ========================================= */
+/* 모바일 최적화 */
+/* ========================================= */
+@media (max-width: 768px) {
+  /* 스크롤 활성화 */
+  body {
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    align-items: center;
+    padding: 10px;
+  }
+  
+  .container {
+    min-height: auto;
+    padding: 20px 15px;
+  }
+
+  /* main-content 너비 고정 */
+  .main-content {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  /* 설정 영역 - 크기 고정 */
+  .settings {
+    width: 100% !important;  /* 90% → 100%로 변경 */
+    max-width: 420px !important;
+    min-width: 280px !important;  /* 최소 너비 추가 */
+    margin: 0 auto !important;
+    flex-direction: column;
+    flex-shrink: 0 !important;  /* 축소 방지 */
+    padding: 15px;
+    gap: 10px;
+    transition: none !important;  /* 애니메이션 제거 */
+  }
+
+  /* 입력 필드 */
+  select,
+  input:not([type="range"]) {
+    width: 100%;
+    min-width: 0;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  /* 버튼 */
+  button {
+    width: 100%;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  
+  /* 음악 플레이어 - 크기 고정 */
+  .rain-player {
+    position: static !important;
+    width: 100% !important;
+    max-width: 420px !important;
+    min-width: 280px !important;  /* 최소 너비 추가 */
+    margin: 0 auto 20px auto;
+    padding: 15px;
+    gap: 13px;
+    flex-shrink: 0 !important;  /* 축소 방지 */
+  }
+  
+  .rain-title {
+    font-size: 1.3rem;
+    text-align: center;
+    padding: 12px 0;
+  }
+  
+  .rain-btn,
+  .volume-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  /* hover 효과 제거 및 active로 교체 */
+  .rain-btn:hover,
+  .volume-icon:hover {
+    transform: none !important;
+    background: none !important;
+  }
+
+  .rain-btn:active {
+    transform: scale(1.1) !important;
+  }
+
+  .volume-icon:active {
+    background: #fef8d2 !important;
+    transform: scale(1.05) !important;
+  }
+
+  /* 토마토 타이머 - 고정 크기 */
+  .tomato-wrapper,
+  .tomato {
+    width: 280px !important;
+    height: 280px !important;
+    margin-top: -30px;
+    flex-shrink: 0 !important; 
+  }
+
+  .tomato-img {
+    width: 100%;
+    height: 100%;
+  }
+
+  .timer-display {
+    font-size: 3rem;
+  }
+
+  /* 상태 메시지 - 크기 고정 */
+  .status {
+    width: 100% !important;
+    max-width: 420px !important;
+    min-width: 280px !important;  /* 최소 너비 추가 */
+    margin: 0 auto;
+    font-size: 1.6rem;
+    height: 80px;
+    flex-shrink: 0 !important;
+  }
+
+  /* 세트 카운터 - 크기 고정 */
+  .set-counter {
+    width: 100% !important;
+    max-width: 420px !important;
+    min-width: 280px !important;  /* 최소 너비 추가 */
+    margin: 0 auto;
+    font-size: 1.2rem;
+    flex-shrink: 0 !important;
+  }
+
+  .guide {
+    font-size: 1rem;
+    margin-top: -40px;
+  }
+  
+  /* 토스트 메시지 */
+  .toast {
+    right: 36px;
+    bottom: 16px;
+    font-size: 1.15rem;
+    min-width: 240px;
+    max-width: calc(100vw - 32px);
+  }
+  
+  /* 푸터 */
+  .footer {
+    padding: 30px;
+    font-size: 0.8rem;
+  }
+
+  .corner-decoration {
+    display: none;
+  }
+  
+  /* 노트 장식도 모바일에서 숨김 */
+  .note-decoration {
+    display: none;
+  }
+  /* 두 번째 노트도 모바일에서 숨김 */
+  .note-decoration-2 {
+    display: none;
+  }
+}

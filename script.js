@@ -368,7 +368,7 @@ function resetConfigurationState() {
 
 function resetConfigurationUI() {
   renderSetCounter();
-  renderStatus("멋쟁이 토마토가 당신을 기다리고 있어요!", "var(--tomato-red)");
+  renderStatus("귀여운 토마토가 당신을 기다리고 있어요!", "var(--tomato-red)");
 }
 
 function resetTimer(showToastMsg = true, fullReset = true) {
@@ -596,4 +596,5 @@ renderSetCounter();
 initRainPlayer();
 
 // NOTE: HTML에서 버튼 onClick이 toggleTimer/applySettings/resetTimer 등을 호출하는 구조
+
 

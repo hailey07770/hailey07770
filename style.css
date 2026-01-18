@@ -1,11 +1,11 @@
 /* 1. 포인트 컬러 변수 설정 */
 :root {
   --panel-height: 180px;  /* ← 원하는 공통 높이 */
-  --tomato-red: #F24C3D;
+  --tomato-red: #ef665a;
   --tomato-green: #7B8E61;
   --bg-color: #FFFFFF;
   --text-color: #4A4A4A;
-  --shadow-red: #D13E30;
+  --shadow-red: #d45145;
   --shadow-green: #5D6C4A;
 }
 
@@ -769,4 +769,5 @@ input[type="range"].volume-slider {
     display: none;
   }
 }
+
 

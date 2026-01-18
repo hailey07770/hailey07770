@@ -337,7 +337,7 @@ function applySettings() {
   resetTimer(false, false);
   renderSetCounter();
   renderStatus("🔫준비 완료! 토마토를 클릭해주세요.", "var(--tomato-red)");
-  showToast("설정이 적용되었습니다!");
+  showToast("✔️설정이 적용되었습니다!");
 }
 
 /* -----------------------------
@@ -596,3 +596,4 @@ renderSetCounter();
 initRainPlayer();
 
 // NOTE: HTML에서 버튼 onClick이 toggleTimer/applySettings/resetTimer 등을 호출하는 구조
+

@@ -18,8 +18,17 @@
   font-display: swap;
 }
 
+@font-face {
+    font-family: 'Okticon';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408@1.0/Ownglyph_okticon-Rg.woff2') format('woff2');
+    font-weight: 700;
+    font-display: swap;
+}
+
+
+
 * {
-  font-family: 'NeoDunggeunmo', sans-serif;
+  font-family: 'Okticon', sans-serif;
   letter-spacing: -0.5px;
   box-sizing: border-box;
   user-select: none;
@@ -442,7 +451,7 @@ button:hover::before {
   line-height: 1.05;  
   flex: 1;
   min-width: 0;
-  font-size: 1.0rem;
+  font-size: 1.05rem;
   font-weight: bold;
   color: #444;
   white-space: nowrap;

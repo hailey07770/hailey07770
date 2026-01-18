@@ -726,13 +726,28 @@ input[type="range"].volume-slider {
   }
   
   /* 토스트 메시지 */
-  .toast {
-    right: 36px;
-    bottom: 16px;
-    font-size: 1.15rem;
-    min-width: 240px;
-    max-width: calc(100vw - 32px);
-  }
+.toast {
+  right: 16px;
+  bottom: 16px;
+  font-size: 1.15rem;
+  min-width: 240px;
+  max-width: calc(100vw - 32px);
+  
+  /* 텍스트 줄바꿈 허용 */
+  white-space: normal;
+  overflow: visible;
+  
+  /* 긴 단어 처리 */
+  word-wrap: break-word;
+  word-break: keep-all;
+  
+  /* 텍스트 정렬 */
+  text-align: center;
+  
+  /* 높이 자동 조정 */
+  height: auto;
+  min-height: 60px;
+}
   
   /* 푸터 */
   .footer {
@@ -740,6 +755,7 @@ input[type="range"].volume-slider {
     font-size: 0.8rem;
   }
 
+  /* 코너 장식 모바일에서 숨김 */
   .corner-decoration {
     display: none;
   }

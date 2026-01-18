@@ -585,6 +585,11 @@ input[type="range"].volume-slider {
   border: 2px solid #fff;
 }
 
+  /* PC에서는 줄바꿈 숨김 */
+  .mobile-break {
+    display: none;
+}
+
 
 
 /* ========================================= */
@@ -621,6 +626,10 @@ input[type="range"].volume-slider {
     padding: 15px;
     gap: 10px;
     transition: none !important;  /* 애니메이션 제거 */
+  }
+
+  .mobile-break {
+    display: block;
   }
 
   /* 입력 필드 */
@@ -708,6 +717,7 @@ input[type="range"].volume-slider {
     font-size: 1.6rem;
     height: 80px;
     flex-shrink: 0 !important;
+    text-align: center !important;
   }
 
   /* 세트 카운터 - 크기 고정 */

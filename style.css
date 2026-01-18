@@ -724,6 +724,10 @@ input[type="range"].volume-slider {
     font-size: 1rem;
     margin-top: -40px;
   }
+    .guide2 {
+    font-size: 1rem;
+    margin-top: -40px;
+  }
   
   /* 토스트 메시지 */
 .toast {
@@ -769,5 +773,3 @@ input[type="range"].volume-slider {
     display: none;
   }
 }
-
-

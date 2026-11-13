@@ -427,6 +427,52 @@ button:active:not(:disabled) {
 
 
 
+/* 알람 끄기 버튼 (알람이 울리는 동안 화면 아래 가운데) */
+.alarm-stop {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 1100;
+  gap: 8px;
+  height: 52px;
+  padding: 0 26px;
+  border: none;
+  border-radius: 999px;
+  background: var(--tomato-red);
+  color: #fff;
+  font-size: 18px;
+  box-shadow: 0 8px 24px rgba(239, 102, 90, 0.4);
+  transform: translateX(-50%);
+  animation: alarmIn 0.25s ease;
+}
+
+.alarm-stop[hidden] {
+  display: none;
+}
+
+.alarm-stop:active:not(:disabled) {
+  transform: translateX(-50%) scale(0.96);
+}
+
+.alarm-bell {
+  display: inline-block;
+  animation: bellRing 1s ease-in-out infinite;
+  transform-origin: 50% 10%;
+}
+
+@keyframes alarmIn {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes bellRing {
+  0%, 50%, 100% { transform: rotate(0); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-12deg); }
+  30% { transform: rotate(8deg); }
+  40% { transform: rotate(-5deg); }
+}
+
 /* 8. 토스트 */
 .toast {
   position: fixed;
@@ -606,7 +652,8 @@ button:active:not(:disabled) {
     background-color: #f3e6dc;
   }
 
-  .music-load:hover {
+  .music-load:hover,
+  .alarm-stop:hover {
     background-color: var(--shadow-red);
   }
 
@@ -1193,6 +1240,11 @@ input[type="range"].volume-slider {
 
   .music-load {
     width: auto;
+  }
+
+  .alarm-stop {
+    width: auto;
+    bottom: 20px;
   }
 
   .music-panel .music-form input {

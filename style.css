@@ -100,17 +100,10 @@ input:not([type="range"]) {
   transition: all 0.3s ease;
 }
 
-select:hover,
-input:not([type="range"]):hover {
+select:focus-visible,
+input:not([type="range"]):focus-visible {
   border-color: var(--shadow-red);
-  box-shadow: 0 4px 20px rgba(254, 248, 210, 0.7), 0 2px 10px rgba(255, 232, 184, 0.5);
-  transform: translateY(-2px);
-}
-
-select:focus,
-input:not([type="range"]):focus {
-  border-color: var(--shadow-red);
-  box-shadow: 0 4px 25px rgba(254, 248, 210, 0.8), 0 2px 12px rgba(255, 232, 184, 0.6);
+  box-shadow: 0 0 0 4px rgba(239, 102, 90, 0.15);
 }
 
 select {
@@ -138,33 +131,23 @@ button {
   border: 3px solid var(--tomato-red);
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    filter 0.18s ease;
   font-size: 18px;
   color: var(--tomato-red);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  overflow: hidden; /* ::before 물결 효과를 버튼 안으로 자르기 위함 */
 }
 
-button::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--cream) 0%, #ffe8b8 100%);
-  transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
-  opacity: 0.6;
-}
-
-button:hover::before {
-  width: 300px;
-  height: 300px;
+/* 누르는 순간 살짝 들어가는 느낌 (모든 버튼 공통) */
+button:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 /* 적용/초기화: 작고 둥근 알약 버튼 */
@@ -181,21 +164,14 @@ button:hover::before {
   color: white;
   box-shadow: 0 3px 10px rgba(239, 102, 90, 0.3);
 }
-#apply-btn:hover {
-  background-color: var(--shadow-red);
-  transform: translateY(-2px);
-}
-#apply-btn:active { transform: translateY(0); }
+
 
 #reset-btn {
   background-color: #fff;
   color: var(--text-color);
   box-shadow: 0 2px 10px rgba(120, 80, 60, 0.12);
 }
-#reset-btn:hover {
-  transform: translateY(-2px);
-}
-#reset-btn:active { transform: translateY(0); }
+
 
 /* 반복 횟수: − 4세트 + */
 .stepper {
@@ -232,7 +208,6 @@ button:hover::before {
   box-shadow: 0 1px 5px rgba(120, 80, 60, 0.15);
   flex-shrink: 0;
 }
-.step-btn:hover { transform: scale(1.08); }
 .step-btn:disabled {
   opacity: 0.35;
   cursor: default;
@@ -304,9 +279,6 @@ button:hover::before {
   white-space: nowrap;
 }
 
-.skip-btn:hover {
-  transform: translateY(-2px);
-}
 
 /* 7. 토마토 */
 .tomato-wrapper {
@@ -327,10 +299,10 @@ button:hover::before {
   align-items: center;
   width: 364px;
   height: 364px;
-  transition: transform 0.3s ease;
+  transition: transform 0.4s ease;
 }
 
-.tomato:hover { transform: scale(1.05); }
+
 .tomato:active { transform: scale(0.98); }
 .tomato:focus-visible {
   outline: 3px dashed var(--tomato-red);
@@ -370,7 +342,7 @@ button:hover::before {
   line-height: 2.5;
 }
 
-.guide:hover { opacity: 1; }
+
 
 /* 8. 토스트 */
 .toast {
@@ -436,7 +408,7 @@ button:hover::before {
   width: 100%;
   transition: color 0.3s ease;
 }
-.footer:hover { color: #666; }
+
 
 /* =========================================
    10. 꾸미기 이미지 (PC 전용)
@@ -524,10 +496,44 @@ button:hover::before {
 }
 
 
-.rain-btn:hover { transform: scale(1.1); }
-.volume-icon:hover {
-  background: #f3e6dc;
-  transform: scale(1.05);
+/* =========================================
+   호버 효과 (마우스가 있는 기기에서만)
+   - 크게 튀거나 물결이 번지는 대신, 살짝 진해지거나 그림자가 짙어지는 정도
+========================================= */
+@media (hover: hover) {
+  #apply-btn:hover {
+    background-color: var(--shadow-red);
+    box-shadow: 0 4px 14px rgba(239, 102, 90, 0.38);
+  }
+
+  #reset-btn:hover,
+  .step-btn:hover {
+    box-shadow: 0 3px 14px rgba(120, 80, 60, 0.2);
+  }
+
+  .skip-btn:hover {
+    background-color: #fff3f1;
+  }
+
+  .rain-btn:hover {
+    filter: brightness(0.93);
+  }
+
+  .volume-icon:hover {
+    background-color: #f3e6dc;
+  }
+
+  select:hover {
+    border-color: var(--shadow-red);
+  }
+
+  .tomato:hover {
+    transform: scale(1.03);
+  }
+
+  .tomato:active {
+    transform: scale(0.98);
+  }
 }
 
 .volume-control {
@@ -953,21 +959,6 @@ input[type="range"].volume-slider {
     flex-shrink: 0;
   }
 
-  /* hover 효과 제거 및 active로 교체 */
-  .rain-btn:hover,
-  .volume-icon:hover {
-    transform: none;
-    background: none;
-  }
-
-  .rain-btn:active {
-    transform: scale(1.1);
-  }
-
-  .volume-icon:active {
-    background: var(--cream);
-    transform: scale(1.05);
-  }
 
   /* 토마토 타이머 - 고정 크기 */
   .tomato-wrapper,

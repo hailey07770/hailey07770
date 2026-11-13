@@ -173,6 +173,41 @@ button:active:not(:disabled) {
 }
 
 
+/* 집중/휴식 시간: 알약형 토글 */
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 55px;
+  padding: 0 5px;
+  border: 3px solid var(--tomato-red);
+  border-radius: 999px;
+  background: var(--cream);
+}
+
+.segmented button {
+  height: calc(100% - 10px);
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-color);
+  font-size: 17px;
+  white-space: nowrap;
+}
+
+.segmented button[aria-checked="true"] {
+  background: #fff;
+  color: var(--tomato-red);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(120, 80, 60, 0.15);
+}
+
+.segmented button:focus-visible {
+  outline: 2px solid var(--shadow-red);
+  outline-offset: 2px;
+}
+
 /* 반복 횟수: − 4세트 + */
 .stepper {
   display: inline-flex;
@@ -523,8 +558,8 @@ button:active:not(:disabled) {
     background-color: #f3e6dc;
   }
 
-  select:hover {
-    border-color: var(--shadow-red);
+  .segmented button[aria-checked="false"]:hover {
+    background-color: rgba(255, 255, 255, 0.6);
   }
 
   .tomato:hover {
@@ -695,16 +730,15 @@ input[type="range"].volume-slider {
     border-radius: calc(20 * var(--u));
   }
 
-  .settings select,
+  .settings .segmented,
   .settings .stepper {
     height: clamp(40px, 6vh, calc(55 * var(--u)));
     font-size: calc(18 * var(--u));
   }
 
-  .settings select {
-    padding-left: calc(15 * var(--u));
-    padding-right: calc(45 * var(--u));
-    background-size: calc(18 * var(--u));
+  .segmented button {
+    padding: 0 calc(16 * var(--u));
+    font-size: calc(17 * var(--u));
   }
 
   .stepper {
@@ -917,9 +951,16 @@ input[type="range"].volume-slider {
     flex-shrink: 0;
   }
 
-  .stepper {
+  .stepper,
+  .segmented {
     width: 100%;
     flex-shrink: 0;
+  }
+
+  .segmented button {
+    flex: 1;
+    width: auto;
+    font-size: 15px;
   }
 
   .container {

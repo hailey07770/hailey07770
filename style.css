@@ -655,10 +655,16 @@ button:active:not(:disabled) {
   transform: translateY(0);
 }
 
-/* 볼륨 조절이 열려 있는 동안은 링크 패널을 잠깐 숨김 (겹침 방지) */
+/* 볼륨 조절이 열려 있는 동안은 링크 패널을 잠깐 숨김 (겹침 방지)
+   - 서로 바뀌는 순간 둘이 동시에 보이지 않도록, 사라지는 쪽은 페이드 없이 바로 숨김 */
 .music-player.panel-open.volume-open .music-panel {
   opacity: 0;
   visibility: hidden;
+  transition: none;
+}
+
+.music-player.panel-open .volume-dropdown {
+  transition: none;
 }
 
 .music-form {

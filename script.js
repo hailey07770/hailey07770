@@ -13,6 +13,8 @@
   const ALARM_GAP_MS = 150;       // 알람 사이 간격
   const DEFAULT_RAIN_VOLUME = 0.5;
   const STORAGE_KEY = 'pomodoro-state-v1';
+  const DEFAULT_REPEAT = 4;       // 반복 횟수 기본값 (0 = 무한)
+  const MAX_REPEAT = 99;
 
   const MSG = {
     idle: '귀여운 토마토가 당신을 기다리고 있어요!',
@@ -38,7 +40,9 @@
     display: $('display'),
     tomato: $('tomato'),
     status: $('statusText'),
-    repeatInput: $('repeatInput'),
+    repeatValue: $('repeatValue'),
+    repeatMinus: $('repeatMinus'),
+    repeatPlus: $('repeatPlus'),
     presetSelect: $('timePreset'),
     applyBtn: $('apply-btn'),
     resetBtn: $('reset-btn'),
@@ -74,6 +78,8 @@
     intervalId: null,
     completedSets: 0,
   };
+
+  let repeatDraft = DEFAULT_REPEAT;   // − / + 로 고르는 중인 반복 횟수 ('적용' 전)
 
   const isInfinite = () => settings.totalSets === 0;
   const hasNextSet = () => isInfinite() || timer.completedSets < settings.totalSets;
@@ -187,9 +193,27 @@
     ui.display.textContent = formatAsMMSS(seconds);
   }
 
+  let statusSwapTimer = null;
+
+  // 상태 문구가 바뀔 때 살짝 흐려졌다가 새 문구로 교체
   function renderStatus(text, color = COLOR.red) {
-    ui.status.textContent = text;
-    ui.status.style.color = color;
+    clearTimeout(statusSwapTimer);
+    if (ui.status.textContent === text && ui.status.style.color === color) {
+      ui.status.classList.remove('is-swapping');
+      return;
+    }
+    ui.status.classList.add('is-swapping');
+    statusSwapTimer = setTimeout(() => {
+      ui.status.textContent = text;
+      ui.status.style.color = color;
+      ui.status.classList.remove('is-swapping');
+    }, 200);
+  }
+
+  function renderRepeat() {
+    ui.repeatValue.textContent = repeatDraft === 0 ? '∞ 무한' : `${repeatDraft}세트`;
+    ui.repeatMinus.disabled = repeatDraft === 0;
+    ui.repeatPlus.disabled = repeatDraft >= MAX_REPEAT;
   }
 
   function renderTomato() {
@@ -321,7 +345,8 @@
     stopAlarm();
     resetRuntime();
 
-    ui.repeatInput.value = '';
+    repeatDraft = DEFAULT_REPEAT;
+    renderRepeat();
     settings.totalSets = 0;
     settings.configured = false;
     timer.completedSets = 0;
@@ -336,7 +361,7 @@
    * ---------------------------*/
   function ensureConfigured() {
     if (settings.configured) return true;
-    showToast("😭먼저 반복 횟수를 입력하고 '적용' 버튼을 눌러주세요!");
+    showToast("😭먼저 반복 횟수를 고르고 '적용' 버튼을 눌러주세요!");
     return false;
   }
 
@@ -361,20 +386,7 @@
   function onApplyClick() {
     playClickSound();
 
-    const raw = ui.repeatInput.value.trim();
-
-    if (raw.includes('.')) {
-      showToast('😭반복 횟수는 정수만 입력 가능합니다!');
-      ui.repeatInput.value = Math.floor(parseFloat(raw));
-      return;
-    }
-
-    const repeat = parseInt(raw, 10);
-    if (Number.isNaN(repeat) || repeat < 0) {
-      showToast('😭올바른 반복 횟수를 입력해주세요!');
-      return;
-    }
-
+    const repeat = repeatDraft;
     const [focus, rest] = ui.presetSelect.value.split('-').map(Number);
     settings.focusMinutes = focus;
     settings.restMinutes = rest;
@@ -511,7 +523,8 @@
     settings.restMinutes = rest;
     settings.totalSets = Math.max(0, Number(data.totalSets) || 0);
     settings.configured = true;
-    ui.repeatInput.value = String(settings.totalSets);
+    repeatDraft = Math.min(MAX_REPEAT, settings.totalSets);
+    renderRepeat();
 
     timer.isFocus = data.isFocus !== false;
     timer.completedSets = Math.max(0, Number(data.completedSets) || 0);
@@ -577,6 +590,16 @@
     ui.applyBtn.addEventListener('click', onApplyClick);
     ui.resetBtn.addEventListener('click', onResetClick);
     ui.skipBtn.addEventListener('click', onSkipClick);
+    ui.repeatMinus.addEventListener('click', () => {
+      playClickSound();
+      repeatDraft = Math.max(0, repeatDraft - 1);
+      renderRepeat();
+    });
+    ui.repeatPlus.addEventListener('click', () => {
+      playClickSound();
+      repeatDraft = Math.min(MAX_REPEAT, repeatDraft + 1);
+      renderRepeat();
+    });
     document.addEventListener('visibilitychange', onVisibilityChange);
 
     // 스페이스바로 시작/일시 정지 (입력칸에 글자를 칠 때나 버튼·토마토에 포커스가 있을 때는 제외)
@@ -601,6 +624,7 @@
   bindEvents();
   renderTime(settings.focusMinutes * 60);
   renderSetCounter();
+  renderRepeat();
   initRainPlayer();
   restoreState();
 })();

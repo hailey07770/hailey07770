@@ -37,8 +37,11 @@
           <option value="25-5">25분 집중 / 5분 휴식</option>
           <option value="50-10">50분 집중 / 10분 휴식</option>
         </select>
-        <input type="number" id="repeatInput" placeholder="반복 횟수 (0 = 무한)"
-               min="0" step="1" inputmode="numeric" aria-label="반복 횟수">
+        <div class="stepper" role="group" aria-label="반복 횟수">
+          <button type="button" class="step-btn" id="repeatMinus" aria-label="반복 횟수 줄이기">−</button>
+          <output id="repeatValue" aria-live="polite">4세트</output>
+          <button type="button" class="step-btn" id="repeatPlus" aria-label="반복 횟수 늘리기">+</button>
+        </div>
         <button id="apply-btn" type="button">적용</button>
         <button id="reset-btn" type="button">초기화</button>
       </div>

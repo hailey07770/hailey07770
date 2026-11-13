@@ -84,7 +84,6 @@ body {
 }
 
 /* range를 제외한 입력 요소 공통 스타일 */
-select,
 input:not([type="range"]) {
   padding: 0 15px;
   height: 55px;
@@ -100,20 +99,9 @@ input:not([type="range"]) {
   transition: all 0.3s ease;
 }
 
-select:focus-visible,
 input:not([type="range"]):focus-visible {
   border-color: var(--shadow-red);
   box-shadow: 0 0 0 4px rgba(239, 102, 90, 0.15);
-}
-
-select {
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23F24C3D' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 15px center;
-  background-size: 18px;
-  padding-right: 45px;
-  cursor: pointer;
 }
 
 input:not([type="range"]) {
@@ -173,39 +161,99 @@ button:active:not(:disabled) {
 }
 
 
-/* 집중/휴식 시간: 알약형 토글 */
-.segmented {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 55px;
-  padding: 0 5px;
-  border: 3px solid var(--tomato-red);
-  border-radius: 999px;
-  background: var(--cream);
+/* 집중/휴식 시간: 직접 만든 드롭다운 */
+.dropdown {
+  position: relative;
+  z-index: 20;
 }
 
-.segmented button {
-  height: calc(100% - 10px);
-  padding: 0 16px;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-color);
-  font-size: 17px;
+.dropdown-toggle {
+  justify-content: space-between;
+  gap: 14px;
+  height: 55px;
+  padding: 0 16px 0 18px;
+  border: 3px solid var(--tomato-red);
+  border-radius: 12px;
+  background: var(--cream);
+  color: #000;
+  font-size: 18px;
   white-space: nowrap;
 }
 
-.segmented button[aria-checked="true"] {
-  background: #fff;
-  color: var(--tomato-red);
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(120, 80, 60, 0.15);
+.dropdown-chevron {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--tomato-red);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.2s ease;
 }
 
-.segmented button:focus-visible {
-  outline: 2px solid var(--shadow-red);
-  outline-offset: 2px;
+.dropdown.open .dropdown-chevron {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 100%;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(120, 80, 60, 0.16), 0 2px 6px rgba(120, 80, 60, 0.06);
+  outline: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+}
+
+.dropdown.open .dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-menu [role="option"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 17px;
+  color: var(--text-color);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dropdown-menu [role="option"].active {
+  background: var(--cream);
+}
+
+.dropdown-menu [role="option"][aria-selected="true"] {
+  color: var(--tomato-red);
+  font-weight: 700;
+}
+
+/* 선택된 항목 오른쪽에 체크 표시 */
+.dropdown-menu [role="option"]::after {
+  content: '';
+  width: 14px;
+  height: 8px;
+  border-left: 2.5px solid currentColor;
+  border-bottom: 2.5px solid currentColor;
+  transform: rotate(-45deg) translateY(-2px);
+  opacity: 0;
+}
+
+.dropdown-menu [role="option"][aria-selected="true"]::after {
+  opacity: 1;
 }
 
 /* 반복 횟수: − 4세트 + */
@@ -558,8 +606,8 @@ button:active:not(:disabled) {
     background-color: #f3e6dc;
   }
 
-  .segmented button[aria-checked="false"]:hover {
-    background-color: rgba(255, 255, 255, 0.6);
+  .dropdown-toggle:hover {
+    border-color: var(--shadow-red);
   }
 
   .tomato:hover {
@@ -730,14 +778,17 @@ input[type="range"].volume-slider {
     border-radius: calc(20 * var(--u));
   }
 
-  .settings .segmented,
+  .settings .dropdown-toggle,
   .settings .stepper {
     height: clamp(40px, 6vh, calc(55 * var(--u)));
     font-size: calc(18 * var(--u));
   }
 
-  .segmented button {
-    padding: 0 calc(16 * var(--u));
+  .dropdown-toggle {
+    padding: 0 calc(16 * var(--u)) 0 calc(18 * var(--u));
+  }
+
+  .dropdown-menu [role="option"] {
     font-size: calc(17 * var(--u));
   }
 
@@ -943,7 +994,6 @@ input[type="range"].volume-slider {
   }
 
   /* 입력 필드 */
-  select,
   input:not([type="range"]) {
     width: 100%;
     min-width: 0;
@@ -952,15 +1002,13 @@ input[type="range"].volume-slider {
   }
 
   .stepper,
-  .segmented {
+  .dropdown {
     width: 100%;
     flex-shrink: 0;
   }
 
-  .segmented button {
-    flex: 1;
-    width: auto;
-    font-size: 15px;
+  .dropdown-toggle {
+    font-size: 16px;
   }
 
   .container {

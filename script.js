@@ -43,7 +43,10 @@
     repeatValue: $('repeatValue'),
     repeatMinus: $('repeatMinus'),
     repeatPlus: $('repeatPlus'),
-    presetGroup: $('timePreset'),
+    presetDropdown: $('timePreset'),
+    presetToggle: $('presetToggle'),
+    presetLabel: $('presetLabel'),
+    presetMenu: $('presetMenu'),
     applyBtn: $('apply-btn'),
     resetBtn: $('reset-btn'),
     skipBtn: $('skip-btn'),
@@ -81,19 +84,17 @@
 
   let repeatDraft = DEFAULT_REPEAT;   // − / + 로 고르는 중인 반복 횟수 ('적용' 전)
 
-  // 집중/휴식 시간 토글 ('25-5' 또는 '50-10')
-  const presetButtons = () => [...ui.presetGroup.querySelectorAll('[data-value]')];
+  // 집중/휴식 시간 드롭다운 ('25-5' 또는 '50-10')
+  const presetOptions = () => [...ui.presetMenu.querySelectorAll('[data-value]')];
   const getPreset = () =>
-    (presetButtons().find((b) => b.getAttribute('aria-checked') === 'true') || presetButtons()[0]).dataset.value;
+    (presetOptions().find((o) => o.getAttribute('aria-selected') === 'true') || presetOptions()[0]).dataset.value;
 
   function setPreset(value) {
-    const buttons = presetButtons();
-    if (!buttons.some((b) => b.dataset.value === value)) return false;
-    buttons.forEach((b) => {
-      const on = b.dataset.value === value;
-      b.setAttribute('aria-checked', String(on));
-      b.tabIndex = on ? 0 : -1;
-    });
+    const options = presetOptions();
+    const picked = options.find((o) => o.dataset.value === value);
+    if (!picked) return false;
+    options.forEach((o) => o.setAttribute('aria-selected', String(o === picked)));
+    ui.presetLabel.textContent = picked.textContent;
     return true;
   }
 
@@ -586,6 +587,88 @@
   }
 
   /* -----------------------------
+   * 집중/휴식 시간 드롭다운
+   * ---------------------------*/
+  function initPresetDropdown() {
+    const { presetDropdown: root, presetToggle: toggle, presetMenu: menu } = ui;
+    let activeIndex = 0;
+
+    const isOpen = () => root.classList.contains('open');
+
+    function highlight(i) {
+      const options = presetOptions();
+      activeIndex = (i + options.length) % options.length;
+      options.forEach((o, k) => o.classList.toggle('active', k === activeIndex));
+    }
+
+    function open() {
+      root.classList.add('open');
+      toggle.setAttribute('aria-expanded', 'true');
+      highlight(presetOptions().findIndex((o) => o.dataset.value === getPreset()));
+      menu.focus({ preventScroll: true });
+    }
+
+    function close({ focusToggle = false } = {}) {
+      if (!isOpen()) return;
+      root.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+      if (focusToggle) toggle.focus({ preventScroll: true });
+    }
+
+    function choose(i) {
+      setPreset(presetOptions()[i].dataset.value);
+      close({ focusToggle: true });
+    }
+
+    toggle.addEventListener('click', () => {
+      playClickSound();
+      if (isOpen()) close();
+      else open();
+    });
+
+    menu.addEventListener('click', (e) => {
+      const option = e.target instanceof Element && e.target.closest('[data-value]');
+      if (!option) return;
+      playClickSound();
+      choose(presetOptions().indexOf(option));
+    });
+
+    menu.addEventListener('mousemove', (e) => {
+      const option = e.target instanceof Element && e.target.closest('[data-value]');
+      if (option) highlight(presetOptions().indexOf(option));
+    });
+
+    // 키보드: ↑↓로 이동, Enter/Space로 선택, Esc로 닫기
+    root.addEventListener('keydown', (e) => {
+      if (!isOpen()) {
+        if (e.target === toggle && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+          e.preventDefault();
+          open();
+        }
+        return;
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        highlight(activeIndex + (e.key === 'ArrowDown' ? 1 : -1));
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        choose(activeIndex);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        close({ focusToggle: true });
+      } else if (e.key === 'Tab') {
+        close();
+      }
+    });
+
+    // 바깥을 누르면 닫기
+    document.addEventListener('pointerdown', (e) => {
+      if (isOpen() && !root.contains(e.target)) close();
+    });
+  }
+
+  /* -----------------------------
    * 시작
    * ---------------------------*/
   function isTypingTarget(el) {
@@ -604,22 +687,7 @@
     ui.applyBtn.addEventListener('click', onApplyClick);
     ui.resetBtn.addEventListener('click', onResetClick);
     ui.skipBtn.addEventListener('click', onSkipClick);
-    ui.presetGroup.addEventListener('click', (e) => {
-      const btn = e.target instanceof Element && e.target.closest('[data-value]');
-      if (!btn) return;
-      playClickSound();
-      setPreset(btn.dataset.value);
-    });
-    // 키보드: 좌우 화살표로 선택 이동
-    ui.presetGroup.addEventListener('keydown', (e) => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      e.preventDefault();
-      const buttons = presetButtons();
-      const i = buttons.findIndex((b) => b.dataset.value === getPreset());
-      const next = buttons[(i + (e.key === 'ArrowRight' ? 1 : buttons.length - 1)) % buttons.length];
-      setPreset(next.dataset.value);
-      next.focus();
-    });
+    initPresetDropdown();
     ui.repeatMinus.addEventListener('click', () => {
       playClickSound();
       repeatDraft = Math.max(0, repeatDraft - 1);
@@ -636,6 +704,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.code !== 'Space' || e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
       if (isTypingTarget(e.target)) return;
+      if (e.target instanceof Element && e.target.closest('.dropdown')) return;
       if (e.target instanceof Element && e.target.closest('button, [role="button"]')) return;
       e.preventDefault();
       onTomatoClick();

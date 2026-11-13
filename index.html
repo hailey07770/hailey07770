@@ -33,11 +33,16 @@
     <main class="main-content">
       <!-- 설정 영역 -->
       <div class="settings">
-        <div class="segmented" id="timePreset" role="radiogroup" aria-label="집중/휴식 시간">
-          <button type="button" role="radio" data-value="25-5" aria-checked="true"
-                  aria-label="25분 집중, 5분 휴식">집중 25 · 휴식 5</button>
-          <button type="button" role="radio" data-value="50-10" aria-checked="false"
-                  aria-label="50분 집중, 10분 휴식">집중 50 · 휴식 10</button>
+        <div class="dropdown" id="timePreset">
+          <button type="button" class="dropdown-toggle" id="presetToggle"
+                  aria-haspopup="listbox" aria-expanded="false" aria-label="집중/휴식 시간">
+            <span id="presetLabel">25분 집중 / 5분 휴식</span>
+            <svg class="dropdown-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <ul class="dropdown-menu" id="presetMenu" role="listbox" tabindex="-1" aria-label="집중/휴식 시간">
+            <li role="option" data-value="25-5" aria-selected="true">25분 집중 / 5분 휴식</li>
+            <li role="option" data-value="50-10" aria-selected="false">50분 집중 / 10분 휴식</li>
+          </ul>
         </div>
         <div class="stepper" role="group" aria-label="반복 횟수">
           <button type="button" class="step-btn" id="repeatMinus" aria-label="반복 횟수 줄이기">−</button>

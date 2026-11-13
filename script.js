@@ -228,7 +228,7 @@
   }
 
   function renderRepeat() {
-    ui.repeatValue.textContent = repeatDraft === 0 ? '∞ 무한' : `${repeatDraft}세트`;
+    ui.repeatValue.textContent = repeatDraft === 0 ? '∞' : `${repeatDraft}세트`;
     ui.repeatMinus.disabled = repeatDraft === 0;
     ui.repeatPlus.disabled = repeatDraft >= MAX_REPEAT;
   }

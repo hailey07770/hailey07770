@@ -43,7 +43,7 @@
     repeatValue: $('repeatValue'),
     repeatMinus: $('repeatMinus'),
     repeatPlus: $('repeatPlus'),
-    presetSelect: $('timePreset'),
+    presetGroup: $('timePreset'),
     applyBtn: $('apply-btn'),
     resetBtn: $('reset-btn'),
     skipBtn: $('skip-btn'),
@@ -81,6 +81,22 @@
 
   let repeatDraft = DEFAULT_REPEAT;   // − / + 로 고르는 중인 반복 횟수 ('적용' 전)
 
+  // 집중/휴식 시간 토글 ('25-5' 또는 '50-10')
+  const presetButtons = () => [...ui.presetGroup.querySelectorAll('[data-value]')];
+  const getPreset = () =>
+    (presetButtons().find((b) => b.getAttribute('aria-checked') === 'true') || presetButtons()[0]).dataset.value;
+
+  function setPreset(value) {
+    const buttons = presetButtons();
+    if (!buttons.some((b) => b.dataset.value === value)) return false;
+    buttons.forEach((b) => {
+      const on = b.dataset.value === value;
+      b.setAttribute('aria-checked', String(on));
+      b.tabIndex = on ? 0 : -1;
+    });
+    return true;
+  }
+
   const isInfinite = () => settings.totalSets === 0;
   const hasNextSet = () => isInfinite() || timer.completedSets < settings.totalSets;
 
@@ -112,7 +128,7 @@
       // 적용된 설정을 저장 (선택만 바꾸고 '적용'을 안 눌렀을 때와 섞이지 않게)
       preset: settings.configured
         ? `${settings.focusMinutes}-${settings.restMinutes}`
-        : ui.presetSelect.value,
+        : getPreset(),
       totalSets: settings.totalSets,
       configured: settings.configured,
       isFocus: timer.isFocus,
@@ -387,7 +403,7 @@
     playClickSound();
 
     const repeat = repeatDraft;
-    const [focus, rest] = ui.presetSelect.value.split('-').map(Number);
+    const [focus, rest] = getPreset().split('-').map(Number);
     settings.focusMinutes = focus;
     settings.restMinutes = rest;
     settings.totalSets = repeat;
@@ -513,12 +529,10 @@
     const data = loadState();
     if (!data) return;
 
-    if ([...ui.presetSelect.options].some((o) => o.value === data.preset)) {
-      ui.presetSelect.value = data.preset;
-    }
+    setPreset(data.preset);
     if (!data.configured) return;
 
-    const [focus, rest] = ui.presetSelect.value.split('-').map(Number);
+    const [focus, rest] = getPreset().split('-').map(Number);
     settings.focusMinutes = focus;
     settings.restMinutes = rest;
     settings.totalSets = Math.max(0, Number(data.totalSets) || 0);
@@ -590,6 +604,22 @@
     ui.applyBtn.addEventListener('click', onApplyClick);
     ui.resetBtn.addEventListener('click', onResetClick);
     ui.skipBtn.addEventListener('click', onSkipClick);
+    ui.presetGroup.addEventListener('click', (e) => {
+      const btn = e.target instanceof Element && e.target.closest('[data-value]');
+      if (!btn) return;
+      playClickSound();
+      setPreset(btn.dataset.value);
+    });
+    // 키보드: 좌우 화살표로 선택 이동
+    ui.presetGroup.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      const buttons = presetButtons();
+      const i = buttons.findIndex((b) => b.dataset.value === getPreset());
+      const next = buttons[(i + (e.key === 'ArrowRight' ? 1 : buttons.length - 1)) % buttons.length];
+      setPreset(next.dataset.value);
+      next.focus();
+    });
     ui.repeatMinus.addEventListener('click', () => {
       playClickSound();
       repeatDraft = Math.max(0, repeatDraft - 1);
@@ -625,6 +655,7 @@
   renderTime(settings.focusMinutes * 60);
   renderSetCounter();
   renderRepeat();
+  setPreset(getPreset());
   initRainPlayer();
   restoreState();
 })();

@@ -373,7 +373,7 @@ button:hover::before {
 .corner-decoration {
   right: 0;
   bottom: 0;
-  width: 250px;
+  width: min(250px, 17.4vw);
 }
 
 .note-decoration,
@@ -383,15 +383,15 @@ button:hover::before {
 }
 
 .note-decoration {
-  left: 40px;
+  left: min(40px, 2.8vw);
   top: 320px;
-  width: 180px;
+  width: min(180px, 12.5vw);
 }
 
 .note-decoration-2 {
-  left: 150px;
+  left: min(150px, 10.4vw);
   top: 210px;
-  width: 100px;
+  width: min(100px, 7vw);
 }
 
 /* =========================================
@@ -547,12 +547,14 @@ input[type="range"].volume-slider {
 }
 
 /* =========================================
-   반쪽 화면 / 작은 노트북 (769px ~ 1439px)
+   반쪽 화면 / 작은 노트북 (769px ~ 1559px)
+   - 양옆 노란 배경이 화면 폭에 비례해 보이도록 흰 영역 폭을 줄임
    - 빗소리 플레이어가 설정 바와 겹치지 않도록 위쪽에 따로 배치
    - 글자/토마토 크기를 화면 폭에 맞춰 조절
 ========================================= */
-@media (min-width: 769px) and (max-width: 1439px) {
+@media (min-width: 769px) and (max-width: 1559px) {
   .container {
+    width: calc(100% - 2 * max(24px, 4vw));
     justify-content: flex-start;
     padding: 24px 20px 0;
   }
@@ -588,7 +590,17 @@ input[type="range"].volume-slider {
 
   input:not([type="range"]) {
     width: auto;
-    flex: 1 1 200px;
+    min-width: 0;
+    flex: 1 1 140px;
+  }
+
+  /* 음표 장식: 설정 바와 겹치지 않게 조금 아래로 */
+  .note-decoration {
+    top: 370px;
+  }
+
+  .note-decoration-2 {
+    top: 270px;
   }
 
   .status {
@@ -620,20 +632,6 @@ input[type="range"].volume-slider {
 
   .footer {
     margin-top: 20px;
-  }
-}
-
-/* 꾸미기 이미지는 공간이 넉넉할 때만 */
-@media (max-width: 1199px) {
-  .note-decoration,
-  .note-decoration-2 {
-    display: none;
-  }
-}
-
-@media (max-width: 1099px) {
-  .corner-decoration {
-    display: none;
   }
 }
 

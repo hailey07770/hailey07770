@@ -9,9 +9,9 @@
   <link rel="icon" type="image/png" href="tomato.png">
   <link rel="apple-touch-icon" href="tomato.png">
 
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261114a">
   <!-- defer: HTML을 다 읽은 뒤 실행되므로 <body> 끝에 둘 필요가 없음 -->
-  <script src="script.js" defer></script>
+  <script src="script.js?v=20261114a" defer></script>
 </head>
 <body>
   <div class="container">
@@ -80,6 +80,11 @@
           <img src="tomato.png" alt="" class="tomato-img" draggable="false">
           <div class="timer-display" id="display">25:00</div>
         </div>
+
+        <!-- 알람이 울리는 동안에만 토마토 바로 아래에 보이는 끄기 버튼 -->
+        <button type="button" class="alarm-stop" id="alarmStop" hidden>
+          <span class="alarm-bell" aria-hidden="true">🔔</span> 알람 끄기
+        </button>
       </div>
 
       <!-- 가이드 -->
@@ -93,11 +98,6 @@
       © 2026 Hailey. All rights reserved.
     </footer>
   </div>
-
-  <!-- 알람이 울리는 동안에만 보이는 끄기 버튼 -->
-  <button type="button" class="alarm-stop" id="alarmStop" hidden>
-    <span class="alarm-bell" aria-hidden="true">🔔</span> 알람 끄기
-  </button>
 
   <!-- 토스트 알림 -->
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

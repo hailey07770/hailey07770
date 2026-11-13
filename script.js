@@ -190,6 +190,7 @@
   function setAlarmStopVisible(visible) {
     if (!ui.alarmStop) return;
     ui.alarmStop.hidden = !visible;
+    document.body.classList.toggle('alarm-ringing', visible);
   }
 
   function playAlarm(times = ALARM_REPEAT, gapMs = ALARM_GAP_MS) {

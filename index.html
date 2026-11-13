@@ -16,17 +16,29 @@
 <body>
   <div class="container">
 
-    <!-- 빗소리 플레이어 -->
-    <audio id="rainSound" src="rain.mp3" loop preload="none"></audio>
-    <div class="rain-player">
-      <div class="rain-title">🌧️ 빗소리 백색소음</div>
-      <button id="rainToggle" class="rain-btn" type="button" aria-label="빗소리 재생">▶</button>
+    <!-- 유튜브 플레이어 (링크를 넣으면 배경음악처럼 재생) -->
+    <div class="music-player" id="musicPlayer">
+      <div class="music-title">🎵 유튜브 플레이어</div>
+      <button id="musicToggle" class="music-btn" type="button" aria-label="재생">▶</button>
       <div class="volume-control">
         <button id="muteToggle" class="volume-icon" type="button" aria-label="음소거">🔊</button>
         <div class="volume-dropdown">
           <input type="range" id="volumeSlider" class="volume-slider"
-                 min="0" max="1" step="0.01" value="0.5" aria-label="빗소리 볼륨">
+                 min="0" max="1" step="0.01" value="0.5" aria-label="음악 볼륨">
         </div>
+      </div>
+      <button id="linkToggle" class="volume-icon link-btn" type="button"
+              aria-label="유튜브 링크 넣기" aria-expanded="false" aria-controls="musicPanel">🔗</button>
+
+      <!-- 링크 입력 + 영상 패널 -->
+      <div class="music-panel" id="musicPanel">
+        <form class="music-form" id="musicForm" autocomplete="off" novalidate>
+          <input type="url" id="musicUrl" placeholder="유튜브 링크를 붙여넣으세요"
+                 aria-label="유튜브 링크" spellcheck="false">
+          <button type="submit" class="music-load">불러오기</button>
+        </form>
+        <div class="music-video"><div id="ytPlayer"></div></div>
+        <p class="music-now" id="musicNow">영상이나 재생목록 링크를 넣으면 반복 재생돼요</p>
       </div>
     </div>
 

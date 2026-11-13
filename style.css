@@ -531,7 +531,7 @@ button:active:not(:disabled) {
 /* =========================================
    11. 빗소리 플레이어 + 볼륨
 ========================================= */
-.rain-player {
+.music-player {
   position: absolute;
   top: 24px;
   left: 24px;
@@ -545,7 +545,7 @@ button:active:not(:disabled) {
   flex-wrap: nowrap;
 }
 
-.rain-title {
+.music-title {
   padding: 2px 4px 2px 0;   /* 글자 윗부분이 잘리지 않게 */
   line-height: 1.4;
   flex: 1;
@@ -559,7 +559,7 @@ button:active:not(:disabled) {
 }
 
 /* 원형 아이콘 버튼 (재생/음소거 공통) */
-.rain-btn,
+.music-btn,
 .volume-icon {
   width: 36px;
   height: 36px;
@@ -569,7 +569,7 @@ button:active:not(:disabled) {
   padding: 0;
 }
 
-.rain-btn {
+.music-btn {
   background: var(--tomato-red);
   color: #fff;
 }
@@ -598,12 +598,16 @@ button:active:not(:disabled) {
     background-color: #fff3f1;
   }
 
-  .rain-btn:hover {
+  .music-btn:hover {
     filter: brightness(0.93);
   }
 
   .volume-icon:hover {
     background-color: #f3e6dc;
+  }
+
+  .music-load:hover {
+    background-color: var(--shadow-red);
   }
 
   .dropdown-toggle:hover {
@@ -617,6 +621,104 @@ button:active:not(:disabled) {
   .tomato:active {
     transform: scale(0.98);
   }
+}
+
+/* 링크 버튼 */
+.link-btn {
+  font-size: 15px;
+}
+
+.link-btn[aria-expanded="true"] {
+  background: #f3e6dc;
+}
+
+/* 링크 입력 + 영상 패널 */
+.music-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 6000;
+  width: 384px;
+  padding: 14px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 14px 36px rgba(120, 80, 60, 0.18), 0 2px 6px rgba(120, 80, 60, 0.06);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+}
+
+.music-player.panel-open .music-panel {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.music-form {
+  display: flex;
+  gap: 8px;
+}
+
+.music-panel .music-form input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: 40px;
+  padding: 0 14px;
+  border: 1.5px solid #eadfd2;
+  border-radius: 999px;
+  background: #fffaf3;
+  font-size: 14px;
+  color: var(--text-color);
+}
+
+.music-panel .music-form input:focus-visible {
+  border-color: var(--tomato-red);
+  box-shadow: 0 0 0 3px rgba(239, 102, 90, 0.15);
+}
+
+.music-load {
+  height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--tomato-red);
+  color: #fff;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* 유튜브 이용 약관상 영상은 200px 이상 크기로 보이게 둠 */
+.music-video {
+  margin-top: 12px;
+  width: 356px;
+  height: 200px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f6efe6;
+  display: none;
+}
+
+.music-player.has-video .music-video {
+  display: block;
+}
+
+.music-video iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.music-now {
+  margin: 10px 4px 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #a08f86;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .volume-control {
@@ -751,19 +853,19 @@ input[type="range"].volume-slider {
     gap: clamp(6px, 3.3vh, calc(30 * var(--u)));
   }
 
-  /* 빗소리 플레이어 */
-  .rain-player {
+  /* 유튜브 플레이어 */
+  .music-player {
     top: calc(24 * var(--u));
     left: calc(24 * var(--u));
     gap: calc(10 * var(--u));
     padding: calc(6 * var(--u)) calc(8 * var(--u)) calc(6 * var(--u)) calc(18 * var(--u));
   }
 
-  .rain-title {
+  .music-title {
     font-size: calc(16.8 * var(--u));
   }
 
-  .rain-btn,
+  .music-btn,
   .volume-icon {
     width: calc(36 * var(--u));
     height: calc(36 * var(--u));
@@ -895,16 +997,27 @@ input[type="range"].volume-slider {
     padding: clamp(10px, 2.8vh, 24px) 20px 0;
   }
 
-  /* 빗소리 플레이어: 설정 바 위에 작은 막대로 */
-  .rain-player {
-    position: static;
+  /* 유튜브 플레이어: 설정 바 위에 작은 막대로 */
+  .music-player {
+    position: relative;
+    top: 0;
+    left: 0;   /* 큰 화면용 위치값이 남아 옆으로 밀리지 않게 */
     width: auto;
     min-height: 0;
     margin-bottom: clamp(6px, 1.8vh, 16px);
   }
 
-  .rain-title {
+  .music-title {
     overflow: visible;
+  }
+
+  .music-panel {
+    left: 50%;
+    transform: translate(-50%, -6px);
+  }
+
+  .music-player.panel-open .music-panel {
+    transform: translate(-50%, 0);
   }
 
   .main-content {
@@ -1022,9 +1135,11 @@ input[type="range"].volume-slider {
     flex-shrink: 0;
   }
 
-  /* 음악 플레이어 - 크기 고정 */
-  .rain-player {
-    position: static;
+  /* 유튜브 플레이어 - 크기 고정 */
+  .music-player {
+    position: relative;
+    top: 0;
+    left: 0;   /* 큰 화면용 위치값이 남아 옆으로 밀리지 않게 */
     width: 100%;
     max-width: 420px;
     min-width: 280px;  /* 최소 너비 추가 */
@@ -1034,18 +1149,42 @@ input[type="range"].volume-slider {
     flex-shrink: 0;  /* 축소 방지 */
   }
 
-  .rain-title {
-    font-size: 1.2rem;
+  .music-title {
+    font-size: 1.05rem;
     text-align: center;
     padding: 12px 0;
   }
 
-  .rain-btn,
+  .music-btn,
   .volume-icon {
     width: 44px;
     height: 44px;
     font-size: 18px;
     flex-shrink: 0;
+  }
+
+  .music-panel {
+    left: 0;
+    width: 100%;
+    transform: translateY(-6px);
+  }
+
+  .music-player.panel-open .music-panel {
+    transform: translateY(0);
+  }
+
+  .music-video {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .music-load {
+    width: auto;
+  }
+
+  .music-panel .music-form input {
+    font-size: 16px; /* iOS에서 입력 시 화면이 확대되지 않게 */
   }
 
 

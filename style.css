@@ -146,7 +146,7 @@ button:active:not(:disabled) {
 /* 적용/초기화: 작고 둥근 알약 버튼 */
 #apply-btn,
 #reset-btn {
-  height: 42px;
+  height: 55px;
   padding: 0 22px;
   border: none;
   border-radius: 999px;
@@ -176,9 +176,9 @@ button:active:not(:disabled) {
   justify-content: space-between;
   gap: 14px;
   height: 55px;
-  padding: 0 16px 0 18px;
-  border: 3px solid var(--tomato-red);
-  border-radius: 12px;
+  padding: 0 18px 0 22px;
+  border: 2px solid var(--tomato-red);
+  border-radius: 999px;
   background: var(--cream);
   color: #000;
   font-size: 18px;
@@ -270,7 +270,7 @@ button:active:not(:disabled) {
   height: 55px;
   min-width: 200px;
   padding: 0 7px;
-  border: 3px solid var(--tomato-red);
+  border: 2px solid var(--tomato-red);
   border-radius: 999px;
   background: var(--cream);
 }
@@ -335,7 +335,7 @@ button:active:not(:disabled) {
   padding: 12px 25px;
   background-color: var(--cream);
   border: 2px solid var(--tomato-red);
-  border-radius: 20px;
+  border-radius: 999px;
   box-shadow: 0 6px 25px rgba(254, 248, 210, 0.6), 0 4px 15px rgba(255, 232, 184, 0.4);
   min-height: 50px;
   display: flex;
@@ -362,7 +362,7 @@ button:active:not(:disabled) {
   height: auto;
   padding: 0 18px;
   border-width: 2px;
-  border-radius: 20px;
+  border-radius: 999px;
   font-size: 1.1rem;
   white-space: nowrap;
 }
@@ -980,7 +980,7 @@ input[type="range"].volume-slider {
 
   #apply-btn,
   #reset-btn {
-    height: clamp(34px, 4.6vh, calc(42 * var(--u)));
+    height: clamp(40px, 6vh, calc(55 * var(--u)));
     padding: 0 calc(22 * var(--u));
     font-size: calc(18 * var(--u));
   }
@@ -995,13 +995,11 @@ input[type="range"].volume-slider {
     min-height: clamp(34px, 5.5vh, calc(50 * var(--u)));
     padding: clamp(4px, 1.3vh, calc(12 * var(--u))) calc(25 * var(--u));
     font-size: max(1rem, min(calc(22.4 * var(--u)), 2.5vh));
-    border-radius: calc(20 * var(--u));
   }
 
   .skip-btn {
     padding: 0 calc(18 * var(--u));
     font-size: max(0.9rem, min(calc(17.6 * var(--u)), 2vh));
-    border-radius: calc(20 * var(--u));
   }
 
   /* 토마토 */

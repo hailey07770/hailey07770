@@ -54,6 +54,7 @@
     setCounter: $('setCounter'),
     toast: $('toast'),
     alarm: $('alarmSound'),
+    alarmStop: $('alarmStop'),
 
     musicPlayer: $('musicPlayer'),
     musicToggle: $('musicToggle'),
@@ -182,6 +183,13 @@
 
     ui.alarm.pause();
     ui.alarm.currentTime = 0;
+    setAlarmStopVisible(false);
+  }
+
+  // '알람 끄기' 버튼은 알람이 실제로 울리는 동안에만 보임
+  function setAlarmStopVisible(visible) {
+    if (!ui.alarmStop) return;
+    ui.alarmStop.hidden = !visible;
   }
 
   function playAlarm(times = ALARM_REPEAT, gapMs = ALARM_GAP_MS) {
@@ -192,7 +200,9 @@
     const playOnce = () => {
       // iOS/Safari 연속 재생 안정성을 위해 처음으로 되감기
       ui.alarm.currentTime = 0;
-      ui.alarm.play().catch(() => {});
+      ui.alarm.play()
+        .then(() => setAlarmStopVisible(true))
+        .catch(() => setAlarmStopVisible(false)); // 브라우저가 소리를 막으면 버튼도 숨김
     };
 
     alarmEndedHandler = () => {
@@ -959,6 +969,14 @@
     ui.applyBtn.addEventListener('click', onApplyClick);
     ui.resetBtn.addEventListener('click', onResetClick);
     ui.skipBtn.addEventListener('click', onSkipClick);
+    ui.alarmStop.addEventListener('click', () => {
+      stopAlarm();
+      showToast('🔕알람을 껐어요');
+    });
+    // Esc로도 알람 끄기
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !ui.alarmStop.hidden) stopAlarm();
+    });
     initPresetDropdown();
     ui.repeatMinus.addEventListener('click', () => {
       playClickSound();

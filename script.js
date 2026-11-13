@@ -243,8 +243,13 @@
     }, 200);
   }
 
+  let repeatEditing = false;   // 세트 숫자를 직접 입력하는 중인지
+
   function renderRepeat() {
-    ui.repeatValue.textContent = repeatDraft === 0 ? '∞' : `${repeatDraft}세트`;
+    // 입력 중일 때는 사용자가 치는 숫자를 덮어쓰지 않음
+    if (!repeatEditing) {
+      ui.repeatValue.value = repeatDraft === 0 ? '∞' : `${repeatDraft}세트`;
+    }
     ui.repeatMinus.disabled = repeatDraft === 0;
     ui.repeatPlus.disabled = repeatDraft >= MAX_REPEAT;
   }
@@ -982,6 +987,48 @@
     ui.repeatMinus.addEventListener('click', () => {
       playClickSound();
       repeatDraft = Math.max(0, repeatDraft - 1);
+      renderRepeat();
+    });
+    // 세트 숫자를 클릭하면 숫자키로 직접 입력 (Enter/바깥 클릭으로 확정, Esc로 취소, 0 또는 비우면 ∞)
+    let repeatEditCanceled = false;
+    let repeatJustFocused = false;
+    ui.repeatValue.addEventListener('focus', () => {
+      repeatEditing = true;
+      repeatEditCanceled = false;
+      repeatJustFocused = true;
+      ui.repeatValue.value = repeatDraft === 0 ? '' : String(repeatDraft);
+      ui.repeatValue.placeholder = '∞';
+      ui.repeatValue.select();   // 바로 덮어쓰며 입력할 수 있게 전체 선택
+    });
+    // 클릭으로 들어올 때 마우스를 떼는 순간 선택이 풀리지 않게
+    ui.repeatValue.addEventListener('mouseup', (e) => {
+      if (repeatJustFocused) e.preventDefault();
+      repeatJustFocused = false;
+    });
+    ui.repeatValue.addEventListener('input', () => {
+      ui.repeatValue.value = ui.repeatValue.value.replace(/\D/g, '').slice(0, 2);
+    });
+    ui.repeatValue.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        ui.repeatValue.blur();
+      } else if (e.key === 'Escape') {
+        repeatEditCanceled = true;
+        ui.repeatValue.blur();
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const n = parseInt(ui.repeatValue.value, 10) || 0;
+        const next = Math.min(MAX_REPEAT, Math.max(0, n + (e.key === 'ArrowUp' ? 1 : -1)));
+        ui.repeatValue.value = next === 0 ? '' : String(next);
+      }
+    });
+    ui.repeatValue.addEventListener('blur', () => {
+      repeatEditing = false;
+      if (!repeatEditCanceled) {
+        const n = parseInt(ui.repeatValue.value, 10);
+        repeatDraft = Number.isNaN(n) ? 0 : Math.min(MAX_REPEAT, Math.max(0, n));
+      }
+      ui.repeatValue.placeholder = '';
       renderRepeat();
     });
     ui.repeatPlus.addEventListener('click', () => {

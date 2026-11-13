@@ -229,6 +229,32 @@ button:hover::before {
   transition: all 0.3s ease;
 }
 
+/* 세트 카운터 옆 건너뛰기 버튼 */
+.counter-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 10px;
+  margin-top: -10px;
+}
+
+.counter-row .set-counter {
+  margin-top: 0;
+}
+
+.skip-btn {
+  height: auto;
+  padding: 0 18px;
+  border-width: 2px;
+  border-radius: 20px;
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+
+.skip-btn:hover {
+  transform: translateY(-2px);
+}
+
 /* 7. 토마토 */
 .tomato-wrapper {
   position: relative;
@@ -259,11 +285,17 @@ button:hover::before {
   border-radius: 50%;
 }
 .tomato.running { animation: pulse 1.5s ease-in-out infinite; }
+
+/* 휴식 중: 덜 익은 초록 토마토 */
+.tomato.break .tomato-img {
+  filter: hue-rotate(80deg) saturate(65%) brightness(1.05) opacity(72%) blur(2.0px) drop-shadow(0 12px 40px rgba(93, 108, 74, 0.4)) drop-shadow(0 8px 50px rgba(200, 220, 180, 0.4));
+}
 @keyframes pulse {
   0%,100% { transform: scale(1); }
   50%     { transform: scale(1.07); }
 }
 .tomato-img {
+  transition: filter 0.6s ease;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -592,6 +624,10 @@ input[type="range"].volume-slider {
     font-size: max(1rem, min(1.4rem, 2.5vh));
   }
 
+  .skip-btn {
+    font-size: max(0.9rem, min(1.1rem, 2vh));
+  }
+
   .tomato-wrapper,
   .tomato {
     width: var(--tomato-size);
@@ -823,6 +859,20 @@ input[type="range"].volume-slider {
     height: 80px;
     flex-shrink: 0;
     text-align: center;
+  }
+
+  /* 세트 카운터 + 건너뛰기: 세로로 */
+  .counter-row {
+    flex-direction: column;
+    width: 100%;
+    max-width: 420px;
+    min-width: 280px;
+    margin: 0 auto;
+    gap: 8px;
+  }
+
+  .skip-btn {
+    height: 44px;
   }
 
   /* 세트 카운터 - 크기 고정 */

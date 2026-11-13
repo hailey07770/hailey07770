@@ -655,6 +655,12 @@ button:active:not(:disabled) {
   transform: translateY(0);
 }
 
+/* 볼륨 조절이 열려 있는 동안은 링크 패널을 잠깐 숨김 (겹침 방지) */
+.music-player.panel-open.volume-open .music-panel {
+  opacity: 0;
+  visibility: hidden;
+}
+
 .music-form {
   display: flex;
   gap: 8px;

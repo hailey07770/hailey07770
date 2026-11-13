@@ -557,6 +557,7 @@
     const isPanelOpen = () => root.classList.contains('panel-open');
 
     function openPanel() {
+      closeVolume();
       root.classList.add('panel-open');
       linkToggle.setAttribute('aria-expanded', 'true');
       if (!state.source) setTimeout(() => musicUrl.focus({ preventScroll: true }), 50);
@@ -752,20 +753,30 @@
     });
 
     // 볼륨 드롭다운: 스피커 버튼에 호버하면 열리고, 영역을 벗어나면 닫힘
+    // 링크 패널과 겹치지 않도록, 볼륨이 열려 있는 동안은 패널을 잠깐 숨김
     const volumeControl = muteToggle.closest('.volume-control');
     const volumeDropdown = volumeControl?.querySelector('.volume-dropdown');
+    let volumeCloseTimer = null;
+
+    function openVolume() {
+      clearTimeout(volumeCloseTimer);
+      volumeControl.classList.add('open');
+      root.classList.add('volume-open');
+    }
+
+    function closeVolume() {
+      clearTimeout(volumeCloseTimer);
+      volumeControl?.classList.remove('open');
+      root.classList.remove('volume-open');
+    }
+
     if (volumeControl && volumeDropdown) {
-      let closeTimer = null;
-      const open = () => {
-        clearTimeout(closeTimer);
-        volumeControl.classList.add('open');
-      };
       const scheduleClose = () => {
-        clearTimeout(closeTimer);
-        closeTimer = setTimeout(() => volumeControl.classList.remove('open'), 120);
+        clearTimeout(volumeCloseTimer);
+        volumeCloseTimer = setTimeout(closeVolume, 120);
       };
-      muteToggle.addEventListener('mouseenter', open);
-      volumeDropdown.addEventListener('mouseenter', open);
+      muteToggle.addEventListener('mouseenter', openVolume);
+      volumeDropdown.addEventListener('mouseenter', openVolume);
       volumeControl.addEventListener('mouseleave', scheduleClose);
     }
 

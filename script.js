@@ -12,6 +12,7 @@
   const ALARM_REPEAT = 4;         // 세션 종료 알람 반복 횟수
   const ALARM_GAP_MS = 150;       // 알람 사이 간격
   const DEFAULT_RAIN_VOLUME = 0.5;
+  const STORAGE_KEY = 'pomodoro-state-v1';
 
   const MSG = {
     idle: '귀여운 토마토가 당신을 기다리고 있어요!',
@@ -41,6 +42,7 @@
     presetSelect: $('timePreset'),
     applyBtn: $('apply-btn'),
     resetBtn: $('reset-btn'),
+    skipBtn: $('skip-btn'),
     setCounter: $('setCounter'),
     toast: $('toast'),
     alarm: $('alarmSound'),
@@ -94,6 +96,38 @@
 
   function remainingMs() {
     return Math.max(0, timer.endAtMs - nowMs());
+  }
+
+  /* -----------------------------
+   * 저장 / 복원 (새로고침해도 이어서)
+   * ---------------------------*/
+  function saveState() {
+    const data = {
+      // 적용된 설정을 저장 (선택만 바꾸고 '적용'을 안 눌렀을 때와 섞이지 않게)
+      preset: settings.configured
+        ? `${settings.focusMinutes}-${settings.restMinutes}`
+        : ui.presetSelect.value,
+      totalSets: settings.totalSets,
+      configured: settings.configured,
+      isFocus: timer.isFocus,
+      running: timer.running,
+      completedSets: timer.completedSets,
+      remainingMs: timer.running ? remainingMs() : timer.pausedRemainingMs,
+      savedAt: Date.now(),
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      // 사생활 보호 모드 등에서 저장이 막혀도 타이머는 그대로 동작
+    }
+  }
+
+  function loadState() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY));
+    } catch {
+      return null;
+    }
   }
 
   /* -----------------------------
@@ -218,6 +252,7 @@
     stopTickLoop();
     tick();
     timer.intervalId = setInterval(tick, TICK_MS);
+    saveState();
   }
 
   function pauseTimer() {
@@ -228,17 +263,19 @@
     renderTomato();
     renderStatus(MSG.paused, COLOR.gray);
     renderTime(Math.ceil(timer.pausedRemainingMs / 1000));
+    saveState();
   }
 
   /* -----------------------------
    * 세션 전환
    * ---------------------------*/
-  function onSessionFinished() {
-    playAlarm();
+  function onSessionFinished({ skipped = false } = {}) {
+    if (!skipped) playAlarm();
+    timer.pausedRemainingMs = 0;
 
     if (timer.isFocus) {
       timer.isFocus = false;
-      showToast('집중 종료! 휴식 시작☕');
+      showToast(skipped ? '⏭집중을 건너뛰었어요. 휴식 시작☕' : '집중 종료! 휴식 시작☕');
       startTimer();
       return;
     }
@@ -248,7 +285,9 @@
 
     if (hasNextSet()) {
       timer.isFocus = true;
-      showToast(`${timer.completedSets}세트 완료! 다시 집중🔥`);
+      showToast(skipped
+        ? `⏭휴식을 건너뛰었어요. ${timer.completedSets}세트 완료! 다시 집중🔥`
+        : `${timer.completedSets}세트 완료! 다시 집중🔥`);
       startTimer();
     } else {
       finishAllSessions();
@@ -259,6 +298,7 @@
     resetRuntime();
     renderStatus(MSG.done, COLOR.red);
     showToast(`모든 세션이 끝났습니다! 총 ${timer.completedSets}세트 완료!`);
+    saveState();
   }
 
   /* -----------------------------
@@ -288,21 +328,34 @@
 
     renderSetCounter();
     renderStatus(MSG.idle, COLOR.red);
+    saveState();
   }
 
   /* -----------------------------
    * 사용자 동작
    * ---------------------------*/
+  function ensureConfigured() {
+    if (settings.configured) return true;
+    showToast("😭먼저 반복 횟수를 입력하고 '적용' 버튼을 눌러주세요!");
+    return false;
+  }
+
   function onTomatoClick() {
     playClickSound();
-
-    if (!settings.configured) {
-      showToast("😭먼저 반복 횟수를 입력하고 '적용' 버튼을 눌러주세요!");
-      return;
-    }
+    if (!ensureConfigured()) return;
 
     if (timer.running) pauseTimer();
     else startTimer();
+  }
+
+  // 지금 세션을 바로 끝내고 다음 단계(집중 → 휴식 → 다음 세트)로 넘어갑니다.
+  function onSkipClick() {
+    playClickSound();
+    if (!ensureConfigured()) return;
+
+    stopTickLoop();
+    stopAlarm();
+    onSessionFinished({ skipped: true });
   }
 
   function onApplyClick() {
@@ -334,6 +387,7 @@
     renderSetCounter();
     renderStatus(MSG.ready, COLOR.red);
     showToast('✔️설정이 적용되었습니다!');
+    saveState();
   }
 
   function onResetClick() {
@@ -441,8 +495,76 @@
   }
 
   /* -----------------------------
+   * 복원
+   * ---------------------------*/
+  function restoreState() {
+    const data = loadState();
+    if (!data) return;
+
+    if ([...ui.presetSelect.options].some((o) => o.value === data.preset)) {
+      ui.presetSelect.value = data.preset;
+    }
+    if (!data.configured) return;
+
+    const [focus, rest] = ui.presetSelect.value.split('-').map(Number);
+    settings.focusMinutes = focus;
+    settings.restMinutes = rest;
+    settings.totalSets = Math.max(0, Number(data.totalSets) || 0);
+    settings.configured = true;
+    ui.repeatInput.value = String(settings.totalSets);
+
+    timer.isFocus = data.isFocus !== false;
+    timer.completedSets = Math.max(0, Number(data.completedSets) || 0);
+    let leftMs = Math.max(0, Number(data.remainingMs) || 0);
+
+    if (data.running) {
+      // 페이지가 닫혀 있던 동안 흐른 시간만큼 세션을 진행시킴 (알람 없이)
+      leftMs -= Date.now() - (Number(data.savedAt) || Date.now());
+      let finished = false;
+      while (leftMs <= 0) {
+        if (timer.isFocus) {
+          timer.isFocus = false;
+        } else {
+          timer.completedSets += 1;
+          if (!hasNextSet()) { finished = true; break; }
+          timer.isFocus = true;
+        }
+        leftMs += currentSessionMs();
+      }
+
+      renderSetCounter();
+      if (finished) {
+        resetRuntime();
+        renderStatus(MSG.done, COLOR.red);
+        saveState();
+        return;
+      }
+      timer.pausedRemainingMs = leftMs;
+      startTimer();
+      return;
+    }
+
+    // 멈춰 있던 상태 복원
+    timer.pausedRemainingMs = leftMs;
+    renderTomato();
+    renderSetCounter();
+    if (leftMs > 0) {
+      renderTime(Math.ceil(leftMs / 1000));
+      renderStatus(MSG.paused, COLOR.gray);
+    } else {
+      renderTime(Math.ceil(currentSessionMs() / 1000));
+      const done = !isInfinite() && timer.completedSets >= settings.totalSets;
+      renderStatus(done ? MSG.done : MSG.ready, COLOR.red);
+    }
+  }
+
+  /* -----------------------------
    * 시작
    * ---------------------------*/
+  function isTypingTarget(el) {
+    return el instanceof Element && !!el.closest('input, select, textarea, [contenteditable="true"]');
+  }
+
   function bindEvents() {
     ui.tomato.addEventListener('click', onTomatoClick);
     // 키보드 사용자도 토마토를 시작/정지할 수 있도록 (Enter / Space)
@@ -454,11 +576,31 @@
     });
     ui.applyBtn.addEventListener('click', onApplyClick);
     ui.resetBtn.addEventListener('click', onResetClick);
+    ui.skipBtn.addEventListener('click', onSkipClick);
     document.addEventListener('visibilitychange', onVisibilityChange);
+
+    // 스페이스바로 시작/일시 정지 (입력칸에 글자를 칠 때나 버튼·토마토에 포커스가 있을 때는 제외)
+    document.addEventListener('keydown', (e) => {
+      if (e.code !== 'Space' || e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+      if (isTypingTarget(e.target)) return;
+      if (e.target instanceof Element && e.target.closest('button, [role="button"]')) return;
+      e.preventDefault();
+      onTomatoClick();
+    });
+
+    // 마우스로 버튼을 누른 뒤엔 포커스를 풀어서, 스페이스바가 그 버튼을 다시 누르지 않게 함
+    document.addEventListener('click', (e) => {
+      const btn = e.target instanceof Element && e.target.closest('button, [role="button"]');
+      if (btn && e.detail > 0) btn.blur();
+    });
+
+    // 탭을 닫거나 새로고침하기 직전에도 저장
+    window.addEventListener('pagehide', saveState);
   }
 
   bindEvents();
   renderTime(settings.focusMinutes * 60);
   renderSetCounter();
   initRainPlayer();
+  restoreState();
 })();

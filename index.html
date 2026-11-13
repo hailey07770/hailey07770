@@ -46,8 +46,11 @@
       <!-- 상태 메시지 -->
       <div class="status" id="statusText" aria-live="polite">귀여운 토마토가<br class="mobile-break"> 당신을 기다리고 있어요!✨</div>
 
-      <!-- 세트 카운터 -->
-      <div class="set-counter" id="setCounter">완료한 세트: 0세트</div>
+      <!-- 세트 카운터 + 건너뛰기 -->
+      <div class="counter-row">
+        <div class="set-counter" id="setCounter">완료한 세트: 0세트</div>
+        <button id="skip-btn" class="skip-btn" type="button" title="지금 세션을 끝내고 다음으로 넘어가요">⏭ 건너뛰기</button>
+      </div>
 
       <!-- 토마토 타이머 -->
       <div class="tomato-wrapper">
@@ -58,7 +61,7 @@
       </div>
 
       <!-- 가이드 -->
-      <p class="guide">1. 토마토를 클릭하여 시작/일시 정지할 수 있습니다.</p>
+      <p class="guide">1. 토마토를 클릭하거나 스페이스바를 눌러 시작/일시 정지할 수 있습니다.</p>
       <p class="guide">2. 시간이 다 되면 알람음이 울립니다.</p>
     </main>
 

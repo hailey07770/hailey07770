@@ -11,7 +11,8 @@
   const TOAST_MS = 2500;          // 토스트 표시 시간 (CSS 진행바 애니메이션과 동일)
   const ALARM_REPEAT = 4;         // 세션 종료 알람 반복 횟수
   const ALARM_GAP_MS = 150;       // 알람 사이 간격
-  const DEFAULT_RAIN_VOLUME = 0.5;
+  const DEFAULT_MUSIC_VOLUME = 0.5;
+  const MUSIC_KEY = 'pomodoro-music-v1';
   const STORAGE_KEY = 'pomodoro-state-v1';
   const DEFAULT_REPEAT = 4;       // 반복 횟수 기본값 (0 = 무한)
   const MAX_REPEAT = 99;
@@ -54,8 +55,12 @@
     toast: $('toast'),
     alarm: $('alarmSound'),
 
-    rainAudio: $('rainSound'),
-    rainToggle: $('rainToggle'),
+    musicPlayer: $('musicPlayer'),
+    musicToggle: $('musicToggle'),
+    linkToggle: $('linkToggle'),
+    musicForm: $('musicForm'),
+    musicUrl: $('musicUrl'),
+    musicNow: $('musicNow'),
     muteToggle: $('muteToggle'),
     volumeSlider: $('volumeSlider'),
   };
@@ -432,17 +437,89 @@
   }
 
   /* -----------------------------
-   * 빗소리 플레이어
+   * 유튜브 플레이어 (링크를 넣으면 배경음악처럼 반복 재생)
    * ---------------------------*/
-  function initRainPlayer() {
-    const { rainAudio, rainToggle, muteToggle, volumeSlider } = ui;
-    if (!rainAudio || !rainToggle || !muteToggle || !volumeSlider) return;
+
+  // 여러 형태의 유튜브 주소에서 영상 ID / 재생목록 ID / 시작 시간을 꺼냄
+  function parseYouTubeUrl(input) {
+    const text = String(input || '').trim();
+    if (!text) return null;
+
+    // 영상 ID만 붙여넣은 경우
+    if (/^[\w-]{11}$/.test(text)) return { videoId: text, listId: null, start: 0 };
+
+    let url;
+    try {
+      url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`);
+    } catch {
+      return null;
+    }
+
+    const host = url.hostname.replace(/^(www\.|m\.|music\.)/, '');
+    let videoId = null;
+
+    if (host === 'youtu.be') {
+      videoId = url.pathname.slice(1).split('/')[0];
+    } else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+      videoId = url.searchParams.get('v');
+      const m = url.pathname.match(/^\/(?:embed|shorts|live|v)\/([\w-]{11})/);
+      if (!videoId && m) videoId = m[1];
+    } else {
+      return null;
+    }
+
+    let listId = url.searchParams.get('list');
+    // 유튜브 자동 믹스(RD...)는 다른 사이트에서 재생되지 않으므로 영상만 사용
+    if (listId && /^RD/.test(listId) && videoId) listId = null;
+    if (videoId && !/^[\w-]{11}$/.test(videoId)) videoId = null;
+    if (!videoId && !listId) return null;
+
+    // t=90, t=1m30s, start=90 형태 지원
+    const t = url.searchParams.get('t') || url.searchParams.get('start') || '';
+    let start = 0;
+    const hms = t.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/);
+    if (hms) start = (+hms[1] || 0) * 3600 + (+hms[2] || 0) * 60 + (+hms[3] || 0);
+
+    return { videoId, listId, start };
+  }
+
+  function initMusicPlayer() {
+    const { musicPlayer: root, musicToggle, muteToggle, volumeSlider, linkToggle, musicForm, musicUrl, musicNow } = ui;
+    if (!root || !musicToggle || !muteToggle || !volumeSlider) return;
 
     const toNumber = (v) => {
       const n = Number(v);
       return Number.isFinite(n) ? n : 0;
     };
 
+    // 저장된 설정 (마지막 링크, 볼륨, 음소거)
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(MUSIC_KEY)) || {};
+    } catch {
+      saved = {};
+    }
+
+    const state = {
+      volume: Number.isFinite(saved.volume) ? saved.volume : DEFAULT_MUSIC_VOLUME,
+      muted: !!saved.muted,
+      source: null,     // { videoId, listId, start }
+      url: '',
+      player: null,
+      ready: false,
+      playing: false,
+      pendingAutoplay: false,
+    };
+
+    function saveMusic() {
+      try {
+        localStorage.setItem(MUSIC_KEY, JSON.stringify({ url: state.url, volume: state.volume, muted: state.muted }));
+      } catch {
+        // 저장이 막혀도 재생은 그대로
+      }
+    }
+
+    /* ---- UI ---- */
     function setSliderFill() {
       const min = toNumber(volumeSlider.min);
       const max = toNumber(volumeSlider.max) || 1;
@@ -451,32 +528,234 @@
     }
 
     function setPlayingUI(isPlaying) {
-      rainToggle.textContent = isPlaying ? '⏸' : '▶';
-      rainToggle.setAttribute('aria-label', isPlaying ? '빗소리 정지' : '빗소리 재생');
+      state.playing = isPlaying;
+      musicToggle.textContent = isPlaying ? '⏸' : '▶';
+      musicToggle.setAttribute('aria-label', isPlaying ? '일시 정지' : '재생');
     }
 
-    // 오디오 상태 → UI(슬라이더/아이콘) 동기화
-    function syncUIFromAudio() {
-      volumeSlider.value = String(rainAudio.volume);
-      const isSilent = rainAudio.muted || rainAudio.volume === 0;
+    function syncVolumeUI() {
+      volumeSlider.value = String(state.volume);
+      const isSilent = state.muted || state.volume === 0;
       muteToggle.textContent = isSilent ? '🔇' : '🔊';
       muteToggle.setAttribute('aria-label', isSilent ? '음소거 해제' : '음소거');
       setSliderFill();
     }
 
-    // 초기 볼륨: 슬라이더 기본값(HTML value) → 오디오
-    const initialVolume = toNumber(volumeSlider.value);
-    rainAudio.volume = initialVolume;
-    rainAudio.muted = initialVolume === 0;
-    syncUIFromAudio();
-    setPlayingUI(!rainAudio.paused);
+    function applyVolumeToPlayer() {
+      if (!state.ready) return;
+      state.player.setVolume(Math.round(state.volume * 100));
+      if (state.muted || state.volume === 0) state.player.mute();
+      else state.player.unMute();
+    }
+
+    function setNowText(text) {
+      musicNow.textContent = text;
+      musicNow.title = text;
+    }
+
+    /* ---- 패널 열기/닫기 ---- */
+    const isPanelOpen = () => root.classList.contains('panel-open');
+
+    function openPanel() {
+      root.classList.add('panel-open');
+      linkToggle.setAttribute('aria-expanded', 'true');
+      if (!state.source) setTimeout(() => musicUrl.focus({ preventScroll: true }), 50);
+    }
+
+    function closePanel() {
+      root.classList.remove('panel-open');
+      linkToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    /* ---- 유튜브 API ---- */
+    let apiPromise = null;
+
+    function loadYouTubeApi() {
+      if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+      if (apiPromise) return apiPromise;
+
+      apiPromise = new Promise((resolve, reject) => {
+        const prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+          if (typeof prev === 'function') prev();
+          resolve(window.YT);
+        };
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        tag.async = true;
+        tag.onerror = () => {
+          apiPromise = null;
+          reject(new Error('youtube api load failed'));
+        };
+        document.head.appendChild(tag);
+      });
+      return apiPromise;
+    }
+
+    function updateNowPlaying() {
+      if (!state.ready) return;
+      const title = state.player.getVideoData?.().title;
+      if (title) setNowText(`♪ ${title}`);
+    }
+
+    function onPlayerStateChange(e) {
+      const S = window.YT.PlayerState;
+      if (e.data === S.PLAYING) {
+        setPlayingUI(true);
+        updateNowPlaying();
+      } else if (e.data === S.PAUSED || e.data === S.CUED) {
+        setPlayingUI(false);
+        updateNowPlaying();
+      } else if (e.data === S.ENDED) {
+        // 배경음악처럼 계속 반복
+        if (state.source && !state.source.listId) {
+          state.player.seekTo(state.source.start || 0, true);
+          state.player.playVideo();
+        } else {
+          setPlayingUI(false);
+        }
+      }
+    }
+
+    function onPlayerError(e) {
+      setPlayingUI(false);
+      const msg = (e.data === 101 || e.data === 150)
+        ? '이 영상은 다른 사이트에서 재생할 수 없도록 막혀 있어요'
+        : '이 링크는 재생할 수 없어요';
+      setNowText(msg);
+      showToast(`😭${msg}`);
+    }
+
+    async function loadSource(source, { autoplay }) {
+      state.source = source;
+      root.classList.add('has-video');
+      setNowText('불러오는 중…');
+
+      let YT;
+      try {
+        YT = await loadYouTubeApi();
+      } catch {
+        setNowText('유튜브에 연결하지 못했어요. 인터넷 연결을 확인해 주세요');
+        showToast('😭유튜브에 연결하지 못했어요');
+        return;
+      }
+
+      const listOpts = source.listId
+        ? { listType: 'playlist', list: source.listId, index: 0, startSeconds: source.start }
+        : null;
+
+      // 이미 플레이어가 있으면 영상만 바꿈
+      if (state.player && state.ready) {
+        if (listOpts) {
+          if (autoplay) state.player.loadPlaylist(listOpts);
+          else state.player.cuePlaylist(listOpts);
+          state.player.setLoop(true);
+        } else if (autoplay) {
+          state.player.loadVideoById({ videoId: source.videoId, startSeconds: source.start });
+        } else {
+          state.player.cueVideoById({ videoId: source.videoId, startSeconds: source.start });
+        }
+        return;
+      }
+
+      state.pendingAutoplay = autoplay;
+      const playerVars = { playsinline: 1, rel: 0, start: source.start || undefined };
+      if (source.listId) {
+        playerVars.listType = 'playlist';
+        playerVars.list = source.listId;
+        playerVars.loop = 1;
+      }
+
+      state.player = new YT.Player('ytPlayer', {
+        width: '100%',
+        height: '100%',
+        videoId: source.videoId || undefined,
+        playerVars,
+        events: {
+          onReady: () => {
+            state.ready = true;
+            applyVolumeToPlayer();
+            if (source.listId) state.player.setLoop(true);
+            if (state.pendingAutoplay) state.player.playVideo();
+            if (!state.pendingAutoplay) setNowText('▶를 누르면 재생돼요');
+            updateNowPlaying();
+          },
+          onStateChange: onPlayerStateChange,
+          onError: onPlayerError,
+        },
+      });
+    }
+
+    /* ---- 이벤트 ---- */
+    musicForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      playClickSound();
+      const source = parseYouTubeUrl(musicUrl.value);
+      if (!source) {
+        showToast('😭올바른 유튜브 링크를 넣어주세요');
+        musicUrl.focus();
+        return;
+      }
+      state.url = musicUrl.value.trim();
+      saveMusic();
+      loadSource(source, { autoplay: true });
+    });
+
+    linkToggle.addEventListener('click', () => {
+      playClickSound();
+      if (isPanelOpen()) closePanel();
+      else openPanel();
+    });
+
+    musicToggle.addEventListener('click', () => {
+      playClickSound();
+      if (!state.source) {
+        showToast('🔗먼저 유튜브 링크를 넣어주세요');
+        openPanel();
+        return;
+      }
+      if (!state.ready) {
+        state.pendingAutoplay = true;
+        return;
+      }
+      if (state.playing) state.player.pauseVideo();
+      else state.player.playVideo();
+    });
+
+    muteToggle.addEventListener('click', () => {
+      playClickSound();
+      state.muted = !state.muted;
+      // 음소거를 풀었는데 볼륨이 0이면 들리지 않으므로 기본값으로 복구
+      if (!state.muted && state.volume === 0) state.volume = DEFAULT_MUSIC_VOLUME;
+      syncVolumeUI();
+      applyVolumeToPlayer();
+      saveMusic();
+    });
+
+    volumeSlider.addEventListener('input', (e) => {
+      state.volume = toNumber(e.target.value);
+      state.muted = state.volume === 0;
+      syncVolumeUI();
+      applyVolumeToPlayer();
+      saveMusic();
+    });
+
+    // 패널 바깥을 누르거나 Esc를 누르면 닫기 (재생은 계속됨)
+    document.addEventListener('pointerdown', (e) => {
+      if (isPanelOpen() && !root.contains(e.target)) closePanel();
+    });
+    root.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isPanelOpen()) {
+        closePanel();
+        linkToggle.focus({ preventScroll: true });
+      }
+    });
 
     // 볼륨 드롭다운: 스피커 버튼에 호버하면 열리고, 영역을 벗어나면 닫힘
     const volumeControl = muteToggle.closest('.volume-control');
     const volumeDropdown = volumeControl?.querySelector('.volume-dropdown');
     if (volumeControl && volumeDropdown) {
       let closeTimer = null;
-
       const open = () => {
         clearTimeout(closeTimer);
         volumeControl.classList.add('open');
@@ -485,42 +764,24 @@
         clearTimeout(closeTimer);
         closeTimer = setTimeout(() => volumeControl.classList.remove('open'), 120);
       };
-
       muteToggle.addEventListener('mouseenter', open);
       volumeDropdown.addEventListener('mouseenter', open);
       volumeControl.addEventListener('mouseleave', scheduleClose);
     }
 
-    rainToggle.addEventListener('click', () => {
-      playClickSound();
-      if (rainAudio.paused) {
-        rainAudio.play().catch(() => showToast('브라우저에서 자동재생이 차단되었습니다.'));
-      } else {
-        rainAudio.pause();
+    /* ---- 시작 ---- */
+    syncVolumeUI();
+    setPlayingUI(false);
+
+    // 지난번에 넣은 링크가 있으면 미리 불러둠 (자동재생은 브라우저가 막으므로 ▶로 재생)
+    if (saved.url) {
+      const source = parseYouTubeUrl(saved.url);
+      if (source) {
+        state.url = saved.url;
+        musicUrl.value = saved.url;
+        loadSource(source, { autoplay: false });
       }
-    });
-
-    muteToggle.addEventListener('click', () => {
-      playClickSound();
-      rainAudio.muted = !rainAudio.muted;
-      // 음소거를 풀었는데 볼륨이 0이면 들리지 않으므로 기본값으로 복구
-      if (!rainAudio.muted && rainAudio.volume === 0) {
-        rainAudio.volume = DEFAULT_RAIN_VOLUME;
-      }
-      syncUIFromAudio();
-    });
-
-    volumeSlider.addEventListener('input', (e) => {
-      const v = toNumber(e.target.value);
-      rainAudio.volume = v;
-      rainAudio.muted = v === 0;
-      syncUIFromAudio();
-    });
-
-    // 어떤 이유로든(브라우저/OS/코드) 상태가 바뀌면 UI가 따라오도록
-    rainAudio.addEventListener('play', () => setPlayingUI(true));
-    rainAudio.addEventListener('pause', () => setPlayingUI(false));
-    rainAudio.addEventListener('volumechange', syncUIFromAudio);
+    }
   }
 
   /* -----------------------------
@@ -725,6 +986,6 @@
   renderSetCounter();
   renderRepeat();
   setPreset(getPreset());
-  initRainPlayer();
+  initMusicPlayer();
   restoreState();
 })();

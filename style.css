@@ -24,6 +24,11 @@
   user-select: none;
 }
 
+/* hidden 속성이 붙은 요소는 버튼 스타일(display:flex)보다 우선해서 항상 숨김 */
+[hidden] {
+  display: none !important;
+}
+
 /* 입력 필드는 드래그 가능하도록 예외 처리 */
 input, textarea {
   -webkit-user-select: text;
@@ -427,31 +432,37 @@ button:active:not(:disabled) {
 
 
 
-/* 알람 끄기 버튼 (알람이 울리는 동안 화면 아래 가운데) */
+/* 알람 끄기 버튼: 알람이 울리는 동안 토마토 바로 아래 가운데
+   (그동안 안내 문구는 잠깐 숨겨서 겹치지 않게) */
+.tomato-wrapper {
+  position: relative;
+}
+
 .alarm-stop {
-  position: fixed;
+  position: absolute;
+  top: calc(100% - 4px);
   left: 50%;
-  bottom: 28px;
-  z-index: 1100;
+  z-index: 5;
   gap: 8px;
-  height: 52px;
+  height: 50px;
   padding: 0 26px;
   border: none;
   border-radius: 999px;
   background: var(--tomato-red);
   color: #fff;
   font-size: 18px;
+  white-space: nowrap;
   box-shadow: 0 8px 24px rgba(239, 102, 90, 0.4);
   transform: translateX(-50%);
   animation: alarmIn 0.25s ease;
 }
 
-.alarm-stop[hidden] {
-  display: none;
-}
-
 .alarm-stop:active:not(:disabled) {
   transform: translateX(-50%) scale(0.96);
+}
+
+body.alarm-ringing .guide {
+  visibility: hidden;
 }
 
 .alarm-bell {
@@ -1021,6 +1032,12 @@ input[type="range"].volume-slider {
     font-size: calc(14.4 * var(--u));
   }
 
+  .alarm-stop {
+    height: calc(50 * var(--u));
+    padding: 0 calc(26 * var(--u));
+    font-size: calc(18 * var(--u));
+  }
+
   /* 꾸미기 이미지도 화면에 맞춰 함께 커짐 */
   .corner-decoration {
     width: min(calc(250 * var(--u)), 17.4vw);
@@ -1244,7 +1261,6 @@ input[type="range"].volume-slider {
 
   .alarm-stop {
     width: auto;
-    bottom: 20px;
   }
 
   .music-panel .music-form input {

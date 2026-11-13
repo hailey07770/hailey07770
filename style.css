@@ -491,8 +491,8 @@ button:hover::before {
 }
 
 .rain-title {
-  padding: 0 4px 0 0;
-  line-height: 1.05;
+  padding: 2px 4px 2px 0;   /* 글자 윗부분이 잘리지 않게 */
+  line-height: 1.4;
   flex: 1;
   min-width: 0;
   font-size: 1.05rem;
@@ -634,63 +634,114 @@ input[type="range"].volume-slider {
 
 /* =========================================
    PC (769px 이상): 스크롤 없이 한 화면에 들어오게
-   - 창 높이(vh)에 맞춰 여백·토마토·글자 크기를 함께 줄임
-   - 창 높이가 920px 이상이면 원래 크기 그대로
+   - 창이 낮으면: 높이(vh)에 맞춰 여백·토마토·글자를 함께 줄임
+   - 창이 크면(QHD 등): --u 단위로 전체를 비율대로 키움
+     --u = 1px (1920x1000 이하) ~ 1.4px (큰 모니터)
 ========================================= */
 @media (min-width: 769px) {
   :root {
-    --tomato-size: clamp(180px, 40vh, 364px);
-  }
-
-  .container {
-    padding-top: clamp(10px, 4.4vh, 40px);
-    padding-bottom: clamp(10px, 4.4vh, 40px);
-  }
-
-  .main-content {
-    gap: clamp(6px, 3.3vh, 30px);
-  }
-
-  .settings {
-    padding: clamp(10px, 2.7vh, 25px);
-    margin-bottom: clamp(0px, 1.1vh, 10px);
+    --u: clamp(1px, min(0.1vh, 0.0521vw), 1.4px);
+    --tomato-size: clamp(180px, 40vh, calc(364 * var(--u)));
   }
 
   /* 흰 영역을 위아래 여백이 있는 둥근 카드로 */
   body {
-    --frame: clamp(4px, 1.8vh, 18px);
+    --frame: clamp(4px, 1.8vh, calc(18 * var(--u)));
   }
 
   .container {
+    max-width: calc(1500 * var(--u));
     min-height: calc(100vh - 2 * var(--frame));
     margin: var(--frame) 0;
+    padding-top: clamp(10px, 4.4vh, calc(40 * var(--u)));
+    padding-bottom: clamp(10px, 4.4vh, calc(40 * var(--u)));
+    border-radius: calc(28 * var(--u));
+  }
+
+  .main-content {
+    gap: clamp(6px, 3.3vh, calc(30 * var(--u)));
+  }
+
+  /* 빗소리 플레이어 */
+  .rain-player {
+    top: calc(24 * var(--u));
+    left: calc(24 * var(--u));
+    gap: calc(10 * var(--u));
+    padding: calc(6 * var(--u)) calc(8 * var(--u)) calc(6 * var(--u)) calc(18 * var(--u));
+  }
+
+  .rain-title {
+    font-size: calc(16.8 * var(--u));
+  }
+
+  .rain-btn,
+  .volume-icon {
+    width: calc(36 * var(--u));
+    height: calc(36 * var(--u));
+    font-size: calc(16 * var(--u));
+  }
+
+  /* 설정 바 */
+  .settings {
+    gap: calc(15 * var(--u));
+    padding: clamp(10px, 2.7vh, calc(25 * var(--u)));
+    margin-bottom: clamp(0px, 1.1vh, calc(10 * var(--u)));
+    border-radius: calc(20 * var(--u));
   }
 
   .settings select,
   .settings .stepper {
-    height: clamp(40px, 6vh, 55px);
+    height: clamp(40px, 6vh, calc(55 * var(--u)));
+    font-size: calc(18 * var(--u));
+  }
+
+  .settings select {
+    padding-left: calc(15 * var(--u));
+    padding-right: calc(45 * var(--u));
+    background-size: calc(18 * var(--u));
+  }
+
+  .stepper {
+    min-width: calc(200 * var(--u));
+  }
+
+  .stepper output {
+    font-size: calc(18 * var(--u));
+  }
+
+  .step-btn {
+    width: calc(34 * var(--u));
+    height: calc(34 * var(--u));
+    font-size: calc(20 * var(--u));
   }
 
   #apply-btn,
   #reset-btn {
-    height: clamp(34px, 4.6vh, 42px);
+    height: clamp(34px, 4.6vh, calc(42 * var(--u)));
+    padding: 0 calc(22 * var(--u));
+    font-size: calc(18 * var(--u));
   }
 
+  /* 상태 문구 · 세트 */
   .status {
-    height: clamp(40px, 11vh, 100px);
-    font-size: max(1.3rem, min(2.2rem, 3.9vh));
+    height: clamp(40px, 11vh, calc(100 * var(--u)));
+    font-size: max(1.3rem, min(calc(35.2 * var(--u)), 3.9vh));
   }
 
   .set-counter {
-    min-height: clamp(34px, 5.5vh, 50px);
-    padding: clamp(4px, 1.3vh, 12px) 25px;
-    font-size: max(1rem, min(1.4rem, 2.5vh));
+    min-height: clamp(34px, 5.5vh, calc(50 * var(--u)));
+    padding: clamp(4px, 1.3vh, calc(12 * var(--u))) calc(25 * var(--u));
+    font-size: max(1rem, min(calc(22.4 * var(--u)), 2.5vh));
+    border-radius: calc(20 * var(--u));
   }
 
   .skip-btn {
-    font-size: max(0.9rem, min(1.1rem, 2vh));
+    padding: 0 calc(18 * var(--u));
+    font-size: max(0.9rem, min(calc(17.6 * var(--u)), 2vh));
+    border-radius: calc(20 * var(--u));
   }
 
+  /* 토마토 */
   .tomato-wrapper,
   .tomato {
     width: var(--tomato-size);
@@ -709,12 +760,30 @@ input[type="range"].volume-slider {
 
   .guide {
     margin-top: calc(var(--tomato-size) * -0.165);
-    font-size: max(0.9rem, min(1.1rem, 1.9vh));
+    font-size: max(0.9rem, min(calc(17.6 * var(--u)), 1.9vh));
     line-height: max(1.5em, min(2.5em, 4.8vh));
   }
 
   .footer {
-    padding: clamp(6px, 2.2vh, 20px);
+    padding: clamp(6px, 2.2vh, calc(20 * var(--u)));
+    font-size: calc(14.4 * var(--u));
+  }
+
+  /* 꾸미기 이미지도 화면에 맞춰 함께 커짐 */
+  .corner-decoration {
+    width: min(calc(250 * var(--u)), 17.4vw);
+  }
+
+  .note-decoration {
+    left: min(calc(40 * var(--u)), 2.8vw);
+    top: calc(320 * var(--u));
+    width: min(calc(180 * var(--u)), 12.5vw);
+  }
+
+  .note-decoration-2 {
+    left: min(calc(150 * var(--u)), 10.4vw);
+    top: calc(210 * var(--u));
+    width: min(calc(100 * var(--u)), 7vw);
   }
 }
 

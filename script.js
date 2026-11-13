@@ -14,7 +14,7 @@
   const DEFAULT_MUSIC_VOLUME = 0.5;
   const MUSIC_KEY = 'pomodoro-music-v1';
   const STORAGE_KEY = 'pomodoro-state-v1';
-  const DEFAULT_REPEAT = 4;       // 반복 횟수 기본값 (0 = 무한)
+  const DEFAULT_REPEAT = 0;       // 반복 횟수 기본값: 0 = 무한(∞)
   const MAX_REPEAT = 99;
 
   const MSG = {

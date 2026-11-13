@@ -1,600 +1,464 @@
-// ===== Pomodoro Timer (Refactor: 명확한 네이밍 + 정확도 유지) =====
+// ===== Pomodoro Timer =====
+// 전역 오염을 막기 위해 전체를 즉시 실행 함수로 감쌉니다.
+// (HTML의 onclick 대신 아래 bindEvents()에서 이벤트를 연결합니다.)
+(() => {
+  'use strict';
 
-/* -----------------------------
- * State (앱 상태: “무엇을 저장하는가”)
- * ---------------------------*/
-let tickIntervalId = null;           // setInterval로 만든 “틱(갱신)” 루프 id (정지/재시작에 사용)
+  /* -----------------------------
+   * 상수
+   * ---------------------------*/
+  const TICK_MS = 250;            // 화면 갱신 주기
+  const TOAST_MS = 2500;          // 토스트 표시 시간 (CSS 진행바 애니메이션과 동일)
+  const ALARM_REPEAT = 4;         // 세션 종료 알람 반복 횟수
+  const ALARM_GAP_MS = 150;       // 알람 사이 간격
+  const DEFAULT_RAIN_VOLUME = 0.5;
 
-// 표시/호환용 상태 (UI에 직접 노출되는 값)
-let remainingSeconds = 1500;         // 화면에 표시되는 남은 시간(초 단위)
-let isFocusSession = true;           // 현재 세션이 집중(true) / 휴식(false)인지
-let isTimerRunning = false;          // 현재 타이머가 실행 중인지
+  const MSG = {
+    idle: '귀여운 토마토가 당신을 기다리고 있어요!',
+    ready: '🔫준비 완료! 토마토를 클릭해주세요.',
+    focus: '집중 중🔥',
+    rest: '휴식 중☕',
+    paused: '일시 정지',
+    done: '🎉완료!',
+  };
 
-let focusMinutes = 25;               // 집중 세션 길이(분)
-let restMinutes = 5;                 // 휴식 세션 길이(분)
+  const COLOR = {
+    red: 'var(--tomato-red)',
+    green: 'var(--tomato-green)',
+    gray: '#888',
+  };
 
-let remainingSets = 0;               // 남은 세트 수(유한일 때만 감소)
-let isSetInfinite = true;            // 세트 반복 무한 여부
-let completedSetCount = 0;           // 완료된 세트 수
-let configuredSetCount = 0;          // 설정된 총 세트 수
-let isConfigured = false;            // 설정 적용 여부
+  /* -----------------------------
+   * DOM
+   * ---------------------------*/
+  const $ = (id) => document.getElementById(id);
 
-// 정확도 상태
-let sessionEndAtMs = 0;              // 이번 세션 종료 시각 (performance.now 기준)
-let pausedRemainingMs = 0;           // 일시정지 시 남은 시간(ms)
+  const ui = {
+    display: $('display'),
+    tomato: $('tomato'),
+    status: $('statusText'),
+    repeatInput: $('repeatInput'),
+    presetSelect: $('timePreset'),
+    applyBtn: $('apply-btn'),
+    resetBtn: $('reset-btn'),
+    setCounter: $('setCounter'),
+    toast: $('toast'),
+    alarm: $('alarmSound'),
 
-/* -----------------------------
- * DOM
- * ---------------------------*/
-const ui = {
-  display: document.getElementById('display'),
-  tomato: document.getElementById('tomato'),
-  status: document.getElementById('statusText'),
-  repeatInput: document.getElementById('repeatInput'),
-  presetSelect: document.getElementById('timePreset'),
-  setCounter: document.getElementById('setCounter'),
-  toast: document.getElementById('toast'),
+    rainAudio: $('rainSound'),
+    rainToggle: $('rainToggle'),
+    muteToggle: $('muteToggle'),
+    volumeSlider: $('volumeSlider'),
+  };
 
-  // 빗소리 플레이어 UI (존재할 수도, 없을 수도 있음)
-  rainAudio: document.getElementById('rainSound'),
-  rainToggle: document.getElementById('rainToggle'),
-  muteToggle: document.getElementById('muteToggle'),
-  volumeSlider: document.getElementById('volumeSlider'),
-};
+  const clickSound = new Audio('effect.mp3');
+  clickSound.preload = 'auto';
 
-const clickSound = new Audio('effect.mp3');
-clickSound.preload = "auto";   // ✅ 미리 로드
-// 🔔 알람 사운드
-const alarmSound = document.getElementById('alarmSound');
+  /* -----------------------------
+   * 상태
+   * ---------------------------*/
+  const settings = {
+    focusMinutes: 25,
+    restMinutes: 5,
+    totalSets: 0,          // 0 = 무한 반복
+    configured: false,
+  };
 
+  const timer = {
+    running: false,
+    isFocus: true,
+    endAtMs: 0,            // 세션 종료 시각 (performance.now 기준)
+    pausedRemainingMs: 0,  // 일시정지 시 남은 시간
+    intervalId: null,
+    completedSets: 0,
+  };
 
+  const isInfinite = () => settings.totalSets === 0;
+  const hasNextSet = () => isInfinite() || timer.completedSets < settings.totalSets;
 
+  /* -----------------------------
+   * 유틸
+   * ---------------------------*/
+  const nowMs = () => performance.now();
+  const minutesToMs = (min) => min * 60 * 1000;
 
-/* -----------------------------
- * Small helpers
- * ---------------------------*/
-const nowMs = () => performance.now();
-const clampToZero = (n) => Math.max(0, n);
-
-function formatAsMMSS(totalSeconds) {
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
-  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-}
-
-function parsePresetMinutes(value) {
-  const [focus, rest] = value.split('-').map(v => parseInt(v, 10));
-  return { focus, rest };
-}
-
-function getCurrentSessionMinutes() {
-  return isFocusSession ? focusMinutes : restMinutes;
-}
-
-function getCurrentSessionDurationMs() {
-  return getCurrentSessionMinutes() * 60 * 1000;
-}
-
-function getRemainingMs() {
-  return clampToZero(sessionEndAtMs - nowMs());
-}
-
-function msToCeilSeconds(ms) {
-  return Math.ceil(ms / 1000);
-}
-
-/* -----------------------------
- * UI helpers
- * ---------------------------*/
-function playClickSound() {
-  clickSound.currentTime = 0;
-  clickSound.play().catch(err => console.log('오디오 재생 오류:', err));
-}
-
-function renderTime(seconds) {
-  ui.display.textContent = formatAsMMSS(seconds);
-}
-
-function renderStatus(text, color) {
-  ui.status.textContent = text;
-  ui.status.style.color = color;
-}
-
-function renderTomato({ running, restMode }) {
-  ui.tomato.classList.toggle('running', !!running);
-  ui.tomato.classList.toggle('break', !!restMode);
-}
-
-function showToast(message) {
-  if (!ui.toast) return;
-
-  // ✅ 안전하게 텍스트 이스케이프 + \n을 <br>로 변환
-  const escaped = String(message)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-
-  ui.toast.innerHTML = escaped.replace(/\n/g, "<br>");
-
-  ui.toast.classList.add('show');
-  setTimeout(() => ui.toast.classList.remove('show'), 2500);
-}
-
-
-function renderSetCounter() {
-  if (!ui.setCounter) return;
-
-  if (!isConfigured) {
-    ui.setCounter.textContent = `완료한 세트: ${completedSetCount}세트 / ?`;
-    return;
+  function formatAsMMSS(totalSeconds) {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
 
-  if (isSetInfinite) {
-    ui.setCounter.textContent = `완료한 세트: ${completedSetCount}세트 / ∞`;
-    return;
+  function currentSessionMs() {
+    return minutesToMs(timer.isFocus ? settings.focusMinutes : settings.restMinutes);
   }
 
-  ui.setCounter.textContent =
-    `완료한 세트: ${completedSetCount}세트 / ${configuredSetCount}세트`;
-}
+  function remainingMs() {
+    return Math.max(0, timer.endAtMs - nowMs());
+  }
 
-/* -----------------------------
- * Time sync (accuracy core)
- * ---------------------------*/
-function syncRemainingSecondsFromDeadline() {
-  const remainMs = getRemainingMs();
-  remainingSeconds = msToCeilSeconds(remainMs);
-  renderTime(remainingSeconds);
-  return remainMs;
-}
+  /* -----------------------------
+   * 사운드
+   * ---------------------------*/
+  function playClickSound() {
+    clickSound.currentTime = 0;
+    clickSound.play().catch(() => {});
+  }
 
-/* -----------------------------
- * Tick loop
- * ---------------------------*/
-function stopTickLoop() {
-  clearInterval(tickIntervalId);
-  tickIntervalId = null;
-}
+  let alarmRepeatTimer = null;
+  let alarmEndedHandler = null;
 
-function startTickLoop() {
-  stopTickLoop();
+  function stopAlarm() {
+    if (!ui.alarm) return;
 
-  const onTick = () => {
-    const remainMs = syncRemainingSecondsFromDeadline();
-    if (remainMs <= 0) {
+    clearTimeout(alarmRepeatTimer);
+    alarmRepeatTimer = null;
+
+    if (alarmEndedHandler) {
+      ui.alarm.removeEventListener('ended', alarmEndedHandler);
+      alarmEndedHandler = null;
+    }
+
+    ui.alarm.pause();
+    ui.alarm.currentTime = 0;
+  }
+
+  function playAlarm(times = ALARM_REPEAT, gapMs = ALARM_GAP_MS) {
+    if (!ui.alarm) return;
+    stopAlarm();
+
+    let played = 0;
+    const playOnce = () => {
+      // iOS/Safari 연속 재생 안정성을 위해 처음으로 되감기
+      ui.alarm.currentTime = 0;
+      ui.alarm.play().catch(() => {});
+    };
+
+    alarmEndedHandler = () => {
+      played += 1;
+      if (played >= times) {
+        stopAlarm();
+        return;
+      }
+      alarmRepeatTimer = setTimeout(playOnce, gapMs);
+    };
+
+    ui.alarm.addEventListener('ended', alarmEndedHandler);
+    playOnce();
+  }
+
+  /* -----------------------------
+   * 렌더링
+   * ---------------------------*/
+  function renderTime(seconds) {
+    ui.display.textContent = formatAsMMSS(seconds);
+  }
+
+  function renderStatus(text, color = COLOR.red) {
+    ui.status.textContent = text;
+    ui.status.style.color = color;
+  }
+
+  function renderTomato() {
+    ui.tomato.classList.toggle('running', timer.running);
+    ui.tomato.classList.toggle('break', !timer.isFocus);
+  }
+
+  function renderSetCounter() {
+    let total = '?';
+    if (settings.configured) total = isInfinite() ? '∞' : `${settings.totalSets}세트`;
+    ui.setCounter.textContent = `완료한 세트: ${timer.completedSets}세트 / ${total}`;
+  }
+
+  let toastTimer = null;
+
+  function showToast(message) {
+    // innerHTML 대신 텍스트 노드 + <br>로 구성 (XSS 걱정 없음)
+    ui.toast.replaceChildren();
+    String(message).split('\n').forEach((line, i) => {
+      if (i > 0) ui.toast.appendChild(document.createElement('br'));
+      ui.toast.appendChild(document.createTextNode(line));
+    });
+
+    // 연속으로 토스트가 뜨면 이전 타이머를 지우고 진행바도 처음부터 다시 시작
+    clearTimeout(toastTimer);
+    ui.toast.classList.remove('show');
+    void ui.toast.offsetWidth; // reflow로 애니메이션 재시작
+    ui.toast.classList.add('show');
+    toastTimer = setTimeout(() => ui.toast.classList.remove('show'), TOAST_MS);
+  }
+
+  /* -----------------------------
+   * 타이머 루프
+   * ---------------------------*/
+  function stopTickLoop() {
+    clearInterval(timer.intervalId);
+    timer.intervalId = null;
+  }
+
+  // 남은 시간을 화면에 반영하고, 세션이 끝났으면 다음 단계로 넘어갑니다.
+  function tick() {
+    const ms = remainingMs();
+    renderTime(Math.ceil(ms / 1000));
+    if (ms <= 0) {
       stopTickLoop();
       onSessionFinished();
     }
-  };
-
-  onTick();
-  tickIntervalId = setInterval(onTick, 250);
-}
-
-/* -----------------------------
- * Session lifecycle
- * ---------------------------*/
-function renderRunningState() {
-  isTimerRunning = true;
-  renderTomato({ running: true, restMode: !isFocusSession });
-
-  if (isFocusSession) {
-    renderStatus("집중 중🔥", "var(--tomato-red)");
-  } else {
-    renderStatus("휴식 중☕", "var(--tomato-green)");
-  }
-}
-
-function renderPausedState() {
-  isTimerRunning = false;
-  renderTomato({ running: false, restMode: !isFocusSession });
-  renderStatus("일시 정지", "#888");
-}
-
-function beginSessionWithDuration(durationMs) {
-  sessionEndAtMs = nowMs() + durationMs;
-  startTickLoop();
-}
-
-function getStartDurationMs() {
-  const duration = pausedRemainingMs > 0
-    ? pausedRemainingMs
-    : getCurrentSessionDurationMs();
-
-  pausedRemainingMs = 0;
-  return duration;
-}
-
-function startTimer() {
-  renderRunningState();
-  beginSessionWithDuration(getStartDurationMs());
-}
-
-function pauseTimer() {
-  stopTickLoop();
-  pausedRemainingMs = getRemainingMs();
-  renderPausedState();
-  syncRemainingSecondsFromDeadline();
-}
-
-/* -----------------------------
- * Guards / actions
- * ---------------------------*/
-function ensureConfiguredOrNotify() {
-  if (isConfigured) return true;
-  showToast("😭먼저 반복 횟수를 입력하고 '적용' 버튼을 눌러주세요!");
-  return false;
-}
-
-function toggleTimer() {
-  playClickSound();
-  if (!ensureConfiguredOrNotify()) return;
-
-  if (isTimerRunning) pauseTimer();
-  else startTimer();
-}
-
-/* -----------------------------
- * Session transitions
- * ---------------------------*/
-function startRestSession() {
-  isFocusSession = false;
-  pausedRemainingMs = 0;
-  showToast("집중 종료! 휴식 시작☕");
-  startTimer();
-}
-
-function recordCompletedSet() {
-  completedSetCount++;
-  renderSetCounter();
-  if (!isSetInfinite) remainingSets--;
-}
-
-function hasNextSet() {
-  return isSetInfinite || remainingSets > 0;
-}
-
-function startNextFocusSession() {
-  isFocusSession = true;
-  pausedRemainingMs = 0;
-  showToast(`${completedSetCount}세트 완료! 다시 집중🔥`);
-  startTimer();
-}
-
-function finishAllSessions() {
-  isTimerRunning = false;
-  stopTickLoop();
-  renderTomato({ running: false, restMode: false });
-  renderStatus("🎉완료!", "var(--tomato-red)");
-  showToast(`모든 세션이 끝났습니다! 총 ${completedSetCount}세트 완료!`);
-  resetTimer(false, false);
-}
-
-function onSessionFinished() {
-  playAlarmRepeat(4, 150); // 🔔 세션 종료 알람
-  if (isFocusSession) {
-    startRestSession();
-    return;
   }
 
-  recordCompletedSet();
+  function startTimer() {
+    const duration = timer.pausedRemainingMs > 0 ? timer.pausedRemainingMs : currentSessionMs();
+    timer.pausedRemainingMs = 0;
+    timer.endAtMs = nowMs() + duration;
+    timer.running = true;
 
-  if (hasNextSet()) startNextFocusSession();
-  else finishAllSessions();
-}
+    renderTomato();
+    if (timer.isFocus) renderStatus(MSG.focus, COLOR.red);
+    else renderStatus(MSG.rest, COLOR.green);
 
-/* -----------------------------
- * Settings parsing / validation
- * ---------------------------*/
-function getRepeatInputText() {
-  return (ui.repeatInput.value ?? "").trim();
-}
-
-function blockDecimalRepeatInput(raw) {
-  if (!raw.includes('.')) return false;
-  showToast("😭반복 횟수는 정수만 입력 가능합니다!");
-  ui.repeatInput.value = Math.floor(parseFloat(raw));
-  return true;
-}
-
-function parseRepeatAsNonNegativeInt(raw) {
-  const val = parseInt(raw, 10);
-  if (Number.isNaN(val) || val < 0) return null;
-  return val;
-}
-
-function applyRepeatSettings(repeatVal) {
-  isSetInfinite = (repeatVal === 0);
-  remainingSets = repeatVal;
-  configuredSetCount = repeatVal;
-}
-
-function applyPresetSettings() {
-  const { focus, rest } = parsePresetMinutes(ui.presetSelect.value);
-  focusMinutes = focus;
-  restMinutes = rest;
-}
-
-function applySettings() {
-  playClickSound();
-
-  const raw = getRepeatInputText();
-  if (blockDecimalRepeatInput(raw)) return;
-
-  const repeatVal = parseRepeatAsNonNegativeInt(raw);
-  if (repeatVal === null) {
-    showToast("😭올바른 반복 횟수를 입력해주세요!");
-    return;
-  }
-
-  applyPresetSettings();
-  applyRepeatSettings(repeatVal);
-
-  isConfigured = true;
-
-  resetTimer(false, false);
-  renderSetCounter();
-  renderStatus("🔫준비 완료! 토마토를 클릭해주세요.", "var(--tomato-red)");
-  showToast("✔️설정이 적용되었습니다!");
-}
-
-/* -----------------------------
- * Reset
- * ---------------------------*/
-function resetRuntimeState() {
-  stopTickLoop();
-  isTimerRunning = false;
-  isFocusSession = true;
-  pausedRemainingMs = 0;
-  sessionEndAtMs = 0;
-  remainingSeconds = focusMinutes * 60;
-}
-
-function resetRuntimeUI() {
-  renderTomato({ running: false, restMode: false });
-  renderTime(remainingSeconds);
-}
-
-function resetConfigurationState() {
-  ui.repeatInput.value = "";
-  completedSetCount = 0;
-  configuredSetCount = 0;
-  isSetInfinite = true;
-  isConfigured = false;
-  remainingSets = 0;
-}
-
-function resetConfigurationUI() {
-  renderSetCounter();
-  renderStatus("귀여운 토마토가 당신을 기다리고 있어요!", "var(--tomato-red)");
-}
-
-function resetTimer(showToastMsg = true, fullReset = true) {
-  if (showToastMsg) playClickSound();
-  stopAlarm(); // ✅ 알람 중지 추가
-  resetRuntimeState();
-  resetRuntimeUI();
-
-  if (fullReset) {
-    resetConfigurationState();
-    resetConfigurationUI();
-  }
-
-  if (showToastMsg) showToast("✔️초기화 되었습니다!");
-}
-
-/* -----------------------------
- * Visibility correction
- * ---------------------------*/
-function onVisibilityChange() {
-  if (!isTimerRunning) return;
-
-  const remainMs = syncRemainingSecondsFromDeadline();
-  if (remainMs <= 0) {
     stopTickLoop();
-    onSessionFinished();
-  }
-}
-
-document.addEventListener("visibilitychange", onVisibilityChange);
-
-
-
-/* -----------------------------
- * alarm Sound
- * ---------------------------*/
-
-let alarmRepeatTimer = null;
-let alarmEndedHandler = null;
-
-function stopAlarm() {
-  if (!alarmSound) return;
-
-  // 반복 타이머 정리
-  if (alarmRepeatTimer) {
-    clearTimeout(alarmRepeatTimer);
-    alarmRepeatTimer = null;
+    tick();
+    timer.intervalId = setInterval(tick, TICK_MS);
   }
 
-  // ended 핸들러 정리
-  if (alarmEndedHandler) {
-    alarmSound.removeEventListener('ended', alarmEndedHandler);
-    alarmEndedHandler = null;
+  function pauseTimer() {
+    stopTickLoop();
+    timer.pausedRemainingMs = remainingMs();
+    timer.running = false;
+
+    renderTomato();
+    renderStatus(MSG.paused, COLOR.gray);
+    renderTime(Math.ceil(timer.pausedRemainingMs / 1000));
   }
 
-  alarmSound.pause();
-  alarmSound.currentTime = 0;
-}
+  /* -----------------------------
+   * 세션 전환
+   * ---------------------------*/
+  function onSessionFinished() {
+    playAlarm();
 
-function playAlarmRepeat(times = 4, gapMs = 150) {
-  if (!alarmSound) return;
-
-  // 혹시 이전 알람이 남아있으면 정리
-  stopAlarm();
-
-  let played = 0;
-
-  const playOnce = () => {
-    // iOS/Safari에서 연속 재생 안정성 위해 currentTime 리셋
-    alarmSound.currentTime = 0;
-    alarmSound.play().catch(()=>{});
-  };
-
-  alarmEndedHandler = () => {
-    played += 1;
-
-    if (played >= times) {
-      stopAlarm();
+    if (timer.isFocus) {
+      timer.isFocus = false;
+      showToast('집중 종료! 휴식 시작☕');
+      startTimer();
       return;
     }
 
-    // 알람 사이에 살짝 텀을 주면 끊김/먹통 방지에 도움됨
-    alarmRepeatTimer = setTimeout(playOnce, gapMs);
-  };
+    timer.completedSets += 1;
+    renderSetCounter();
 
-  alarmSound.addEventListener('ended', alarmEndedHandler);
-
-  // 첫 회 재생 시작
-  playOnce();
-}
-
-
-/* -----------------------------
- * Rain Sound Player (HTML에 존재할 때만 동작)
- * ---------------------------*/
-function initRainPlayer() {
-  const { rainAudio, rainToggle, muteToggle, volumeSlider } = ui;
-
-  if (!rainAudio || !rainToggle || !muteToggle || !volumeSlider) return;
-
-  function setSliderFillFromValue() {
-    const min = Number(volumeSlider.min || 0);
-    const max = Number(volumeSlider.max || 1);
-    const val = Number(volumeSlider.value || 0);
-    const p = ((val - min) / (max - min)) * 100;
-    volumeSlider.style.setProperty('--p', `${p}%`);
-  }
-
-  // HTML에 빗소리 UI가 없으면 아무것도 하지 않음 (호환성 확보)
-  if (!rainAudio || !rainToggle || !muteToggle || !volumeSlider) return;
-
-  // 값 안전 변환 (input.value는 문자열)
-  const toNumber = (v) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
-
-  function setPlayingUI(isPlaying) {
-    rainToggle.textContent = isPlaying ? "⏸" : "▶";
-  }
-
-  // ✅ (핵심) 오디오 상태 -> UI(슬라이더/아이콘) 동기화
-  function syncUIFromAudio() {
-    // volume(0~1)을 슬라이더에 반영
-    volumeSlider.value = String(rainAudio.volume);
-
-    // muted 또는 volume==0이면 🔇
-    const isSilent = rainAudio.muted || rainAudio.volume === 0;
-    muteToggle.textContent = isSilent ? "🔇" : "🔊";
-
-    setSliderFillFromValue(); // ✅ 추가
-  }
-
-// ✅ (핵심) 초기 볼륨: 슬라이더 기본값(HTML value="0.5") -> 오디오에 적용
-const initialVolume = toNumber(volumeSlider.value); // 0~1
-rainAudio.volume = initialVolume;
-rainAudio.muted = (initialVolume === 0);
-
-// 그 다음 "오디오 상태 -> UI" 동기화
-syncUIFromAudio();
-
-  // ============================
-  // ✅ 드롭다운 열림/유지 제어 (확성기 먼저 → 슬라이더 유지)
-  // ============================
-  const volumeControl = muteToggle.closest('.volume-control');
-  const volumeDropdown = volumeControl?.querySelector('.volume-dropdown');
-  if (volumeControl && volumeDropdown) {
-    let closeTimer = null;
-
-    const openDropdown = () => {
-      if (closeTimer) clearTimeout(closeTimer);
-      volumeControl.classList.add('open'); // ✅ CSS에서 .open일 때만 보이게
-    };
-
-    const scheduleClose = () => {
-      if (closeTimer) clearTimeout(closeTimer);
-      closeTimer = setTimeout(() => {
-        volumeControl.classList.remove('open');
-      }, 120); // 이동 중 깜빡임 방지
-    };
-
-    // ✅ "확성기 버튼"을 먼저 호버해야 open
-    muteToggle.addEventListener('mouseenter', openDropdown);
-
-    // ✅ 열린 상태에서 슬라이더 영역으로 이동해도 유지
-    volumeDropdown.addEventListener('mouseenter', openDropdown);
-
-    // ✅ volume-control 영역을 벗어나면 닫기
-    volumeControl.addEventListener('mouseleave', scheduleClose);
-  }
-
-
-  // 재생/정지
-  rainToggle.addEventListener('click', () => {
-     playClickSound(); // ✅ 효과음
-
-    if (rainAudio.paused) {
-      rainAudio.play().catch(() => showToast("브라우저에서 자동재생이 차단되었습니다."));
+    if (hasNextSet()) {
+      timer.isFocus = true;
+      showToast(`${timer.completedSets}세트 완료! 다시 집중🔥`);
+      startTimer();
     } else {
-      rainAudio.pause();
+      finishAllSessions();
     }
-  });
+  }
 
-  // 뮤트 토글
-  muteToggle.addEventListener('click', () => {
-     playClickSound(); // ✅ 효과음
+  function finishAllSessions() {
+    resetRuntime();
+    renderStatus(MSG.done, COLOR.red);
+    showToast(`모든 세션이 끝났습니다! 총 ${timer.completedSets}세트 완료!`);
+  }
 
-    rainAudio.muted = !rainAudio.muted;
+  /* -----------------------------
+   * 초기화
+   * ---------------------------*/
+  // 진행 중인 세션만 초기화 (설정과 완료 세트 수는 유지)
+  function resetRuntime() {
+    stopTickLoop();
+    timer.running = false;
+    timer.isFocus = true;
+    timer.pausedRemainingMs = 0;
+    timer.endAtMs = 0;
 
-    // 뮤트 해제했는데 볼륨이 0이면 사용성이 안 좋아서 기본값 복구(원치 않으면 삭제)
-    if (!rainAudio.muted && rainAudio.volume === 0) {
-      rainAudio.volume = 0.5;
+    renderTomato();
+    renderTime(settings.focusMinutes * 60);
+  }
+
+  // 전체 초기화 (설정까지 지움)
+  function resetAll() {
+    stopAlarm();
+    resetRuntime();
+
+    ui.repeatInput.value = '';
+    settings.totalSets = 0;
+    settings.configured = false;
+    timer.completedSets = 0;
+
+    renderSetCounter();
+    renderStatus(MSG.idle, COLOR.red);
+  }
+
+  /* -----------------------------
+   * 사용자 동작
+   * ---------------------------*/
+  function onTomatoClick() {
+    playClickSound();
+
+    if (!settings.configured) {
+      showToast("😭먼저 반복 횟수를 입력하고 '적용' 버튼을 눌러주세요!");
+      return;
     }
 
+    if (timer.running) pauseTimer();
+    else startTimer();
+  }
+
+  function onApplyClick() {
+    playClickSound();
+
+    const raw = ui.repeatInput.value.trim();
+
+    if (raw.includes('.')) {
+      showToast('😭반복 횟수는 정수만 입력 가능합니다!');
+      ui.repeatInput.value = Math.floor(parseFloat(raw));
+      return;
+    }
+
+    const repeat = parseInt(raw, 10);
+    if (Number.isNaN(repeat) || repeat < 0) {
+      showToast('😭올바른 반복 횟수를 입력해주세요!');
+      return;
+    }
+
+    const [focus, rest] = ui.presetSelect.value.split('-').map(Number);
+    settings.focusMinutes = focus;
+    settings.restMinutes = rest;
+    settings.totalSets = repeat;
+    settings.configured = true;
+    timer.completedSets = 0;
+
+    stopAlarm();
+    resetRuntime();
+    renderSetCounter();
+    renderStatus(MSG.ready, COLOR.red);
+    showToast('✔️설정이 적용되었습니다!');
+  }
+
+  function onResetClick() {
+    playClickSound();
+    resetAll();
+    showToast('✔️초기화 되었습니다!');
+  }
+
+  // 탭이 백그라운드에 있는 동안 브라우저가 setInterval을 늦추므로,
+  // 다시 보일 때 즉시 시간을 맞춥니다.
+  function onVisibilityChange() {
+    if (timer.running) tick();
+  }
+
+  /* -----------------------------
+   * 빗소리 플레이어
+   * ---------------------------*/
+  function initRainPlayer() {
+    const { rainAudio, rainToggle, muteToggle, volumeSlider } = ui;
+    if (!rainAudio || !rainToggle || !muteToggle || !volumeSlider) return;
+
+    const toNumber = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    function setSliderFill() {
+      const min = toNumber(volumeSlider.min);
+      const max = toNumber(volumeSlider.max) || 1;
+      const p = ((toNumber(volumeSlider.value) - min) / (max - min)) * 100;
+      volumeSlider.style.setProperty('--p', `${p}%`);
+    }
+
+    function setPlayingUI(isPlaying) {
+      rainToggle.textContent = isPlaying ? '⏸' : '▶';
+      rainToggle.setAttribute('aria-label', isPlaying ? '빗소리 정지' : '빗소리 재생');
+    }
+
+    // 오디오 상태 → UI(슬라이더/아이콘) 동기화
+    function syncUIFromAudio() {
+      volumeSlider.value = String(rainAudio.volume);
+      const isSilent = rainAudio.muted || rainAudio.volume === 0;
+      muteToggle.textContent = isSilent ? '🔇' : '🔊';
+      muteToggle.setAttribute('aria-label', isSilent ? '음소거 해제' : '음소거');
+      setSliderFill();
+    }
+
+    // 초기 볼륨: 슬라이더 기본값(HTML value) → 오디오
+    const initialVolume = toNumber(volumeSlider.value);
+    rainAudio.volume = initialVolume;
+    rainAudio.muted = initialVolume === 0;
     syncUIFromAudio();
-  });
+    setPlayingUI(!rainAudio.paused);
 
-  // 슬라이더 조절 -> 오디오 반영
-volumeSlider.addEventListener('input', (e) => {
-  const v = toNumber(e.target.value);
-  rainAudio.volume = v;
-  rainAudio.muted = (v === 0);
+    // 볼륨 드롭다운: 스피커 버튼에 호버하면 열리고, 영역을 벗어나면 닫힘
+    const volumeControl = muteToggle.closest('.volume-control');
+    const volumeDropdown = volumeControl?.querySelector('.volume-dropdown');
+    if (volumeControl && volumeDropdown) {
+      let closeTimer = null;
 
-  syncUIFromAudio(); // 이 안에서 setSliderFillFromValue()까지 같이 처리됨
-});
+      const open = () => {
+        clearTimeout(closeTimer);
+        volumeControl.classList.add('open');
+      };
+      const scheduleClose = () => {
+        clearTimeout(closeTimer);
+        closeTimer = setTimeout(() => volumeControl.classList.remove('open'), 120);
+      };
 
+      muteToggle.addEventListener('mouseenter', open);
+      volumeDropdown.addEventListener('mouseenter', open);
+      volumeControl.addEventListener('mouseleave', scheduleClose);
+    }
 
-  // 오디오 이벤트로 UI 동기화 (가장 중요)
-  rainAudio.addEventListener('play', () => { setPlayingUI(true); syncUIFromAudio(); });
-  rainAudio.addEventListener('pause', () => setPlayingUI(false));
+    rainToggle.addEventListener('click', () => {
+      playClickSound();
+      if (rainAudio.paused) {
+        rainAudio.play().catch(() => showToast('브라우저에서 자동재생이 차단되었습니다.'));
+      } else {
+        rainAudio.pause();
+      }
+    });
 
-  // ✅ 어떤 이유로든(브라우저/OS/코드) 볼륨이나 뮤트가 바뀌면 UI가 따라오게
-  rainAudio.addEventListener('volumechange', syncUIFromAudio);
+    muteToggle.addEventListener('click', () => {
+      playClickSound();
+      rainAudio.muted = !rainAudio.muted;
+      // 음소거를 풀었는데 볼륨이 0이면 들리지 않으므로 기본값으로 복구
+      if (!rainAudio.muted && rainAudio.volume === 0) {
+        rainAudio.volume = DEFAULT_RAIN_VOLUME;
+      }
+      syncUIFromAudio();
+    });
 
-  // 최초 버튼 상태
-  setPlayingUI(!rainAudio.paused);
-}
+    volumeSlider.addEventListener('input', (e) => {
+      const v = toNumber(e.target.value);
+      rainAudio.volume = v;
+      rainAudio.muted = v === 0;
+      syncUIFromAudio();
+    });
 
+    // 어떤 이유로든(브라우저/OS/코드) 상태가 바뀌면 UI가 따라오도록
+    rainAudio.addEventListener('play', () => setPlayingUI(true));
+    rainAudio.addEventListener('pause', () => setPlayingUI(false));
+    rainAudio.addEventListener('volumechange', syncUIFromAudio);
+  }
 
-/* -----------------------------
- * Init
- * ---------------------------*/
-renderTime(remainingSeconds);
-renderSetCounter();
-initRainPlayer();
+  /* -----------------------------
+   * 시작
+   * ---------------------------*/
+  function bindEvents() {
+    ui.tomato.addEventListener('click', onTomatoClick);
+    // 키보드 사용자도 토마토를 시작/정지할 수 있도록 (Enter / Space)
+    ui.tomato.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onTomatoClick();
+      }
+    });
+    ui.applyBtn.addEventListener('click', onApplyClick);
+    ui.resetBtn.addEventListener('click', onResetClick);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+  }
 
-// NOTE: HTML에서 버튼 onClick이 toggleTimer/applySettings/resetTimer 등을 호출하는 구조
-
-
+  bindEvents();
+  renderTime(settings.focusMinutes * 60);
+  renderSetCounter();
+  initRainPlayer();
+})();

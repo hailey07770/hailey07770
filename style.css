@@ -42,7 +42,7 @@ body {
   background-size: 30px 30px, 100%;
   color: var(--text-color);
   padding: 0;
-  overflow: hidden;
+  overflow-x: hidden;   /* 가로 넘침만 막고, 화면이 낮으면 세로 스크롤 허용 */
 }
 
 .container {
@@ -544,6 +544,97 @@ input[type="range"].volume-slider {
 /* PC에서는 줄바꿈 숨김 */
 .mobile-break {
   display: none;
+}
+
+/* =========================================
+   반쪽 화면 / 작은 노트북 (769px ~ 1439px)
+   - 빗소리 플레이어가 설정 바와 겹치지 않도록 위쪽에 따로 배치
+   - 글자/토마토 크기를 화면 폭에 맞춰 조절
+========================================= */
+@media (min-width: 769px) and (max-width: 1439px) {
+  .container {
+    justify-content: flex-start;
+    padding: 24px 20px 0;
+  }
+
+  /* 빗소리 플레이어: 설정 바 위에 작은 막대로 */
+  .rain-player {
+    position: static;
+    width: auto;
+    min-height: 0;
+    margin-bottom: 16px;
+    padding: 6px 8px 6px 18px;
+    border-radius: 999px;
+  }
+
+  .rain-title {
+    padding: 0 6px 0 0;
+    overflow: visible;
+  }
+
+  .main-content {
+    width: 100%;
+    gap: 20px;
+    margin: 0 auto auto;
+  }
+
+  /* 설정 바: 폭이 모자라면 줄바꿈 */
+  .settings {
+    flex-wrap: wrap;
+    max-width: 100%;
+    padding: 20px;
+    gap: 12px;
+  }
+
+  input:not([type="range"]) {
+    width: auto;
+    flex: 1 1 200px;
+  }
+
+  .status {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    height: auto;
+    min-height: 60px;
+    padding: 0 10px;
+    text-align: center;
+  }
+
+  .tomato-wrapper,
+  .tomato {
+    width: 320px;
+    height: 320px;
+  }
+
+  .tomato {
+    margin-top: -60px;
+  }
+
+  .timer-display {
+    font-size: 3.5rem;
+  }
+
+  .guide {
+    margin-top: -50px;
+    line-height: 2;
+  }
+
+  .footer {
+    margin-top: 20px;
+  }
+}
+
+/* 꾸미기 이미지는 공간이 넉넉할 때만 */
+@media (max-width: 1199px) {
+  .note-decoration,
+  .note-decoration-2 {
+    display: none;
+  }
+}
+
+@media (max-width: 1099px) {
+  .corner-decoration {
+    display: none;
+  }
 }
 
 /* ========================================= */

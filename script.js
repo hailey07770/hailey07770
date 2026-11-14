@@ -13,6 +13,7 @@
   const ALARM_GAP_MS = 150;       // 알람 사이 간격
   const DEFAULT_MUSIC_VOLUME = 0.5;
   const MUSIC_KEY = 'pomodoro-music-v1';
+  const SETTINGS_COLLAPSE_KEY = 'pomodoro-settings-collapsed';
   const STORAGE_KEY = 'pomodoro-state-v1';
   const DEFAULT_REPEAT = 0;       // 반복 횟수 기본값: 0 = 무한(∞)
   const MAX_REPEAT = 99;
@@ -55,6 +56,9 @@
     toast: $('toast'),
     alarm: $('alarmSound'),
     alarmStop: $('alarmStop'),
+    settings: $('settings'),
+    settingsSummary: $('settingsSummary'),
+    settingsSummaryText: $('settingsSummaryText'),
 
     musicPlayer: $('musicPlayer'),
     musicToggle: $('musicToggle'),
@@ -101,6 +105,7 @@
     if (!picked) return false;
     options.forEach((o) => o.setAttribute('aria-selected', String(o === picked)));
     ui.presetLabel.textContent = picked.textContent;
+    renderSettingsSummary();
     return true;
   }
 
@@ -243,6 +248,25 @@
     }, 200);
   }
 
+  // 모바일 설정 접기 버튼에 보이는 요약: '25분 집중 / 5분 휴식 · ∞'
+  function renderSettingsSummary() {
+    if (!ui.settingsSummaryText) return;
+    const repeatText = repeatDraft === 0 ? '∞' : `${repeatDraft}세트`;
+    ui.settingsSummaryText.textContent = `${ui.presetLabel.textContent} · ${repeatText}`;
+  }
+
+  function setSettingsCollapsed(collapsed) {
+    ui.settings.classList.toggle('collapsed', collapsed);
+    ui.settingsSummary.setAttribute('aria-expanded', String(!collapsed));
+    try {
+      localStorage.setItem(SETTINGS_COLLAPSE_KEY, collapsed ? '1' : '0');
+    } catch {
+      // 저장이 막혀도 접기는 그대로 동작
+    }
+  }
+
+  const isMobileLayout = () => window.matchMedia('(max-width: 768px)').matches;
+
   let repeatEditing = false;   // 세트 숫자를 직접 입력하는 중인지
 
   function renderRepeat() {
@@ -251,6 +275,7 @@
       ui.repeatValue.value = repeatDraft === 0 ? '∞' : `${repeatDraft}세트`;
     }
     ui.repeatMinus.disabled = repeatDraft === 0;
+    renderSettingsSummary();
     ui.repeatPlus.disabled = repeatDraft >= MAX_REPEAT;
   }
 
@@ -437,6 +462,7 @@
     renderSetCounter();
     renderStatus(MSG.ready, COLOR.red);
     showToast('✔️설정이 적용되었습니다!');
+    if (isMobileLayout()) setSettingsCollapsed(true);
     saveState();
   }
 
@@ -545,7 +571,7 @@
 
     function setPlayingUI(isPlaying) {
       state.playing = isPlaying;
-      musicToggle.textContent = isPlaying ? '⏸' : '▶';
+      musicToggle.classList.toggle('is-playing', isPlaying);
       musicToggle.setAttribute('aria-label', isPlaying ? '일시 정지' : '재생');
     }
 
@@ -984,6 +1010,10 @@
       if (e.key === 'Escape' && !ui.alarmStop.hidden) stopAlarm();
     });
     initPresetDropdown();
+    ui.settingsSummary.addEventListener('click', () => {
+      playClickSound();
+      setSettingsCollapsed(!ui.settings.classList.contains('collapsed'));
+    });
     ui.repeatMinus.addEventListener('click', () => {
       playClickSound();
       repeatDraft = Math.max(0, repeatDraft - 1);
@@ -1063,6 +1093,12 @@
   renderSetCounter();
   renderRepeat();
   setPreset(getPreset());
+  // 모바일은 처음에 접힌 상태로 시작 (사용자가 편 적이 있으면 그 상태 유지)
+  {
+    let saved = null;
+    try { saved = localStorage.getItem(SETTINGS_COLLAPSE_KEY); } catch { saved = null; }
+    setSettingsCollapsed(saved === null ? true : saved === '1');
+  }
   initMusicPlayer();
   restoreState();
 })();

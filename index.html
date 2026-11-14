@@ -9,9 +9,9 @@
   <link rel="icon" type="image/png" href="tomato.png">
   <link rel="apple-touch-icon" href="tomato.png">
 
-  <link rel="stylesheet" href="style.css?v=20261114g">
+  <link rel="stylesheet" href="style.css?v=20261115a">
   <!-- defer: HTML을 다 읽은 뒤 실행되므로 <body> 끝에 둘 필요가 없음 -->
-  <script src="script.js?v=20261114g" defer></script>
+  <script src="script.js?v=20261115a" defer></script>
 </head>
 <body>
   <div class="container">
@@ -19,7 +19,7 @@
     <!-- 유튜브 플레이어 (링크를 넣으면 배경음악처럼 재생) -->
     <div class="music-player" id="musicPlayer">
       <div class="music-title">🎵 유튜브 플레이어</div>
-      <button id="musicToggle" class="music-btn" type="button" aria-label="재생">▶</button>
+      <button id="musicToggle" class="music-btn" type="button" aria-label="재생"><svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg><svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg></button>
       <div class="volume-control">
         <button id="muteToggle" class="volume-icon" type="button" aria-label="음소거">🔊</button>
         <div class="volume-dropdown">
@@ -44,7 +44,15 @@
 
     <main class="main-content">
       <!-- 설정 영역 -->
-      <div class="settings">
+      <div class="settings" id="settings">
+        <!-- 모바일 전용: 설정 접기/펴기 (지금 설정 요약) -->
+        <button type="button" class="settings-summary" id="settingsSummary"
+                aria-expanded="true" aria-controls="settingsBody">
+          <span class="settings-summary-text"><span aria-hidden="true">⏱</span> <span id="settingsSummaryText">25분 집중 / 5분 휴식 · ∞</span></span>
+          <svg class="dropdown-chevron" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+
+        <div class="settings-body" id="settingsBody">
         <div class="dropdown" id="timePreset">
           <button type="button" class="dropdown-toggle" id="presetToggle"
                   aria-haspopup="listbox" aria-expanded="false" aria-label="집중/휴식 시간">
@@ -66,6 +74,7 @@
         </div>
         <button id="apply-btn" type="button">적용</button>
         <button id="reset-btn" type="button">초기화</button>
+        </div>
       </div>
 
       <!-- 상태 메시지 -->

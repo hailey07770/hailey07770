@@ -1,4 +1,8 @@
-/* 1. 포인트 컬러 변수 설정 */
+/* =========================================================
+   1. 기본
+   색 변수 · 폰트 · 공통 설정
+   ========================================================= */
+
 :root {
   --tomato-red: #ef665a;
   --tomato-green: #7B8E61;
@@ -8,7 +12,6 @@
   --cream: #fef8d2;
 }
 
-/* 2. 폰트 및 기본 설정 */
 @font-face {
   font-family: 'Okticon';
   src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408@1.0/Ownglyph_okticon-Rg.woff2') format('woff2');
@@ -50,6 +53,11 @@ body {
   overflow-x: hidden;   /* 가로 넘침만 막고, 화면이 낮으면 세로 스크롤 허용 */
 }
 
+/* =========================================================
+   2. 레이아웃
+   흰 카드(container) · 가운데 내용
+   ========================================================= */
+
 .container {
   position: relative;
   display: flex;
@@ -73,51 +81,10 @@ body {
   margin: auto 0;
 }
 
-/* 3. 설정 영역 */
-.settings {
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
-  justify-content: center;
-  gap: 15px;
-  margin-bottom: 10px;
-  padding: 25px;
-  background: linear-gradient(135deg, #fff 0%, #fefefe 100%);
-  border-radius: 20px;
-  border: 1px solid rgba(120, 80, 60, 0.06);
-  box-shadow: 0 6px 24px rgba(120, 80, 60, 0.14), 0 1px 3px rgba(120, 80, 60, 0.06);
-  transition: all 0.3s ease;
-}
+/* =========================================================
+   3. 공통 버튼
+   ========================================================= */
 
-/* range를 제외한 입력 요소 공통 스타일 */
-input:not([type="range"]) {
-  padding: 0 15px;
-  height: 55px;
-  border: 3px solid var(--tomato-red);
-  border-radius: 12px;
-  outline: none;
-  background-color: var(--cream);
-  font-size: 18px;
-  color: #000;
-  display: inline-flex;
-  align-items: center;
-  text-align: left;
-  transition: all 0.3s ease;
-}
-
-input:not([type="range"]):focus-visible {
-  border-color: var(--shadow-red);
-  box-shadow: 0 0 0 4px rgba(239, 102, 90, 0.15);
-}
-
-input:not([type="range"]) {
-  width: 280px;
-}
-input:not([type="range"])::placeholder {
-  color: #8B8370;
-}
-
-/* 4. 버튼(전역) */
 button {
   height: 55px;
   padding: 25px 25px;
@@ -144,28 +111,343 @@ button:active:not(:disabled) {
   transform: scale(0.96);
 }
 
-/* 적용/초기화: 작고 둥근 알약 버튼 */
-#apply-btn,
-#reset-btn {
-  height: 55px;
-  padding: 0 22px;
+/* =========================================================
+   4. 유튜브 플레이어
+   재생/음소거/링크 버튼 · 링크 패널 · 볼륨 슬라이더
+   ========================================================= */
+
+.music-player {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  padding: 6px 8px 6px 18px;
+  background: #fff;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 80, 60, 0.06);
+  box-shadow: 0 5px 18px rgba(120, 80, 60, 0.17), 0 1px 3px rgba(120, 80, 60, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.music-title {
+  padding: 2px 4px 2px 0;   /* 글자 윗부분이 잘리지 않게 */
+  line-height: 1.4;
+  flex: 1;
+  min-width: 0;
+  font-size: 1.05rem;
+  font-weight: bold;
+  color: var(--text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 원형 아이콘 버튼 (재생/음소거 공통) */
+.music-btn,
+.volume-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 16px;
+  border: none;
+  padding: 0;
+}
+
+.music-btn {
+  background: var(--tomato-red);
+  color: #fff;
+}
+
+.volume-icon {
+  background: #f7efe8;
+}
+
+/* 재생/일시정지 아이콘 (이모지 대신 그려서 기기마다 같은 모양) */
+.music-btn svg {
+  width: 52%;
+  height: 52%;
+  fill: currentColor;
+}
+
+.music-btn .icon-pause,
+.music-btn.is-playing .icon-play { display: none; }
+
+.music-btn.is-playing .icon-pause { display: block; }
+
+/* 스피커 아이콘: 음소거여도 크기는 그대로, 소리 물결 대신 X 표시만 바뀜 */
+.icon-speaker {
+  width: 66%;
+  height: 66%;
+  overflow: visible;
+}
+
+.icon-speaker .spk-body {
+  fill: #6b5b55;
+}
+
+.icon-speaker .spk-wave,
+.icon-speaker .spk-x {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.icon-speaker .spk-wave {
+  stroke: #6b5b55;
+}
+
+.icon-speaker .spk-x {
+  stroke: var(--tomato-red);
+  display: none;
+}
+
+.volume-icon.is-muted .spk-wave { display: none; }
+
+.volume-icon.is-muted .spk-x { display: inline; }
+
+/* 링크 버튼 */
+.link-btn {
+  font-size: 15px;
+}
+
+.link-btn[aria-expanded="true"] {
+  background: #f3e6dc;
+}
+
+/* 링크 입력 + 영상 패널 */
+.music-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 6000;
+  width: 384px;
+  padding: 14px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 14px 36px rgba(120, 80, 60, 0.18), 0 2px 6px rgba(120, 80, 60, 0.06);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+}
+
+.music-player.panel-open .music-panel {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* 볼륨 조절이 열려 있는 동안은 링크 패널을 잠깐 숨김 (겹침 방지)
+   - 서로 바뀌는 순간 둘이 동시에 보이지 않도록, 사라지는 쪽은 페이드 없이 바로 숨김 */
+.music-player.panel-open.volume-open .music-panel {
+  opacity: 0;
+  visibility: hidden;
+  transition: none;
+}
+
+.music-player.panel-open .volume-dropdown {
+  transition: none;
+}
+
+.music-form {
+  display: flex;
+  gap: 8px;
+}
+
+.music-panel .music-form input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  height: 40px;
+  padding: 0 14px;
+  border: 1.5px solid #eadfd2;
+  border-radius: 999px;
+  background: #fffaf3;
+  font-size: 14px;
+  color: var(--text-color);
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.music-panel .music-form input:focus-visible {
+  border-color: var(--tomato-red);
+  box-shadow: 0 0 0 3px rgba(239, 102, 90, 0.15);
+}
+
+.music-panel .music-form input::placeholder {
+  color: #8B8370;
+}
+
+.music-load {
+  height: 40px;
+  padding: 0 16px;
   border: none;
   border-radius: 999px;
+  background: var(--tomato-red);
+  color: #fff;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
-#apply-btn {
-  background-color: var(--tomato-red);
-  color: white;
-  box-shadow: 0 3px 10px rgba(239, 102, 90, 0.3);
+/* 유튜브 이용 약관상 영상은 200px 이상 크기로 보이게 둠 */
+.music-video {
+  margin-top: 12px;
+  width: 356px;
+  height: 200px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f6efe6;
+  display: none;
 }
 
-
-#reset-btn {
-  background-color: #fff;
-  color: var(--text-color);
-  box-shadow: 0 2px 10px rgba(120, 80, 60, 0.12);
+.music-player.has-video .music-video {
+  display: block;
 }
 
+.music-video iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.music-now {
+  margin: 10px 4px 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #a08f86;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.volume-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+  z-index: 4000;
+}
+
+/* 드롭다운: 버튼 아래로 */
+.volume-dropdown {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 46px; /* 버튼(36px) + 간격(10px) */
+  width: 56px;
+  height: 190px;
+  background: white;
+  border: none;
+  border-radius: 16px;
+  padding: 12px 10px;
+  box-shadow: 0 8px 25px rgba(242, 76, 61, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s ease, visibility 0.18s ease;
+  z-index: 5000;
+}
+
+.volume-control.open .volume-dropdown {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* 볼륨 슬라이더 (세로로 회전) */
+input[type="range"].volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 160px;     /* 세로 길이로 보일 길이 */
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: block;
+  box-shadow: none;
+  cursor: pointer;
+  transform: rotate(90deg);  /* 위=최소, 아래=최대 */
+  transform-origin: 50% 50%;
+  --p: 0%;                   /* 채워진 비율 (JS에서 갱신) */
+  --track-fill: linear-gradient(
+    to right,
+    var(--tomato-red) 0%,
+    var(--tomato-red) var(--p),
+    #f1f1f1 var(--p),
+    #f1f1f1 100%
+  );
+}
+
+/* Webkit */
+.volume-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--track-fill);
+  border: 1px solid #ccc;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--tomato-red);
+  border: 2px solid #fff;
+  margin-top: -6px;
+}
+
+/* Firefox */
+.volume-slider::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--track-fill);
+  border: 1px solid #ccc;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--tomato-red);
+  border: 2px solid #fff;
+}
+
+/* =========================================================
+   5. 설정 바
+   시간 드롭다운 · 반복 횟수 · 적용/초기화 · 모바일 접기
+   ========================================================= */
+
+.settings {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 10px;
+  padding: 25px;
+  background: linear-gradient(135deg, #fff 0%, #fefefe 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(120, 80, 60, 0.06);
+  box-shadow: 0 6px 24px rgba(120, 80, 60, 0.14), 0 1px 3px rgba(120, 80, 60, 0.06);
+  transition: all 0.3s ease;
+}
+
+/* 설정 접기/펴기: PC에서는 요약 버튼을 숨기고 내용은 그대로 한 줄 */
+.settings-summary {
+  display: none;
+}
+
+.settings-body {
+  display: contents;
+}
 
 /* 집중/휴식 시간: 직접 만든 드롭다운 */
 .dropdown {
@@ -321,13 +603,38 @@ button:active:not(:disabled) {
   box-shadow: 0 1px 5px rgba(120, 80, 60, 0.15);
   flex-shrink: 0;
 }
+
 .step-btn:disabled {
   opacity: 0.35;
   cursor: default;
   transform: none;
 }
 
-/* 5. 상태 메시지 */
+/* 적용/초기화: 작고 둥근 알약 버튼 */
+#apply-btn,
+#reset-btn {
+  height: 55px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 999px;
+}
+
+#apply-btn {
+  background-color: var(--tomato-red);
+  color: white;
+  box-shadow: 0 3px 10px rgba(239, 102, 90, 0.3);
+}
+
+#reset-btn {
+  background-color: #fff;
+  color: var(--text-color);
+  box-shadow: 0 2px 10px rgba(120, 80, 60, 0.12);
+}
+
+/* =========================================================
+   6. 상태 문구
+   ========================================================= */
+
 .status {
   font-size: 2.2rem;
   color: var(--tomato-red);
@@ -342,16 +649,21 @@ button:active:not(:disabled) {
   animation: fadeIn 0.5s ease;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
+
 .status.is-swapping {
   opacity: 0;
   transform: translateY(-4px);
 }
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* 6. 세트 카운터 */
+/* =========================================================
+   7. 세트 카운터 · 건너뛰기
+   ========================================================= */
+
 .set-counter {
   font-size: 1.4rem;
   color: var(--tomato-red);
@@ -393,8 +705,10 @@ button:active:not(:disabled) {
   white-space: nowrap;
 }
 
+/* =========================================================
+   8. 토마토 타이머
+   ========================================================= */
 
-/* 7. 토마토 */
 .tomato-wrapper {
   position: relative;
   width: 364px;
@@ -416,18 +730,21 @@ button:active:not(:disabled) {
   transition: transform 0.4s ease;
 }
 
-
 .tomato:active { transform: scale(0.98); }
+
 .tomato:focus-visible {
   outline: 3px dashed var(--tomato-red);
   outline-offset: -20px;
   border-radius: 50%;
 }
+
 .tomato.running { animation: pulse 1.5s ease-in-out infinite; }
+
 @keyframes pulse {
   0%,100% { transform: scale(1); }
   50%     { transform: scale(1.07); }
 }
+
 .tomato-img {
   width: 100%;
   height: 100%;
@@ -446,6 +763,11 @@ button:active:not(:disabled) {
   pointer-events: none;
   transform: translateY(15px);
 }
+
+/* =========================================================
+   9. 안내 문구
+   ========================================================= */
+
 .guide {
   margin-top: -60px;
   color: var(--text-color);
@@ -461,13 +783,15 @@ button:active:not(:disabled) {
   display: none;
 }
 
-
-
-/* 알람 끄기 버튼: 알람이 울리는 동안 토마토 바로 아래 가운데
-   (그동안 안내 문구는 잠깐 숨겨서 겹치지 않게) */
-.tomato-wrapper {
-  position: relative;
+/* PC에서는 줄바꿈 숨김 */
+.mobile-break {
+  display: none;
 }
+
+/* =========================================================
+   10. 알람 끄기 버튼
+   알람이 울리는 동안 토마토 바로 아래 가운데 (그동안 안내 문구는 잠깐 숨김)
+   ========================================================= */
 
 .alarm-stop {
   position: absolute;
@@ -515,7 +839,10 @@ body.alarm-ringing .guide {
   40% { transform: rotate(-5deg); }
 }
 
-/* 8. 토스트 */
+/* =========================================================
+   11. 토스트 알림
+   ========================================================= */
+
 .toast {
   position: fixed;
   right: 20px;
@@ -543,11 +870,13 @@ body.alarm-ringing .guide {
   overflow: hidden;
   white-space: nowrap;
 }
+
 .toast.show {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
 }
+
 .toast::after {
   content: "";
   position: absolute;
@@ -560,16 +889,20 @@ body.alarm-ringing .guide {
   transform-origin: left;
   transform: scaleX(0);
 }
+
 .toast.show::after {
   animation: toastProgress 2.5s linear forwards;
 }
+
 @keyframes toastProgress {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
 }
 
+/* =========================================================
+   12. 푸터
+   ========================================================= */
 
-/* 9. 푸터 */
 .footer {
   padding: 20px;
   font-size: 0.9rem;
@@ -580,10 +913,10 @@ body.alarm-ringing .guide {
   transition: color 0.3s ease;
 }
 
+/* =========================================================
+   13. 꾸미기 이미지 (음표 · 체크무늬)
+   ========================================================= */
 
-/* =========================================
-   10. 꾸미기 이미지 (PC 전용)
-========================================= */
 .decoration {
   position: fixed;
   height: auto;
@@ -616,87 +949,10 @@ body.alarm-ringing .guide {
   width: min(100px, 7vw);
 }
 
-/* =========================================
-   11. 빗소리 플레이어 + 볼륨
-========================================= */
-.music-player {
-  position: absolute;
-  top: 24px;
-  left: 24px;
-  padding: 6px 8px 6px 18px;
-  background: #fff;
-  border-radius: 999px;
-  border: 1px solid rgba(120, 80, 60, 0.06);
-  box-shadow: 0 5px 18px rgba(120, 80, 60, 0.17), 0 1px 3px rgba(120, 80, 60, 0.06);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: nowrap;
-}
-
-.music-title {
-  padding: 2px 4px 2px 0;   /* 글자 윗부분이 잘리지 않게 */
-  line-height: 1.4;
-  flex: 1;
-  min-width: 0;
-  font-size: 1.05rem;
-  font-weight: bold;
-  color: var(--text-color);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* 원형 아이콘 버튼 (재생/음소거 공통) */
-.music-btn,
-.volume-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  font-size: 16px;
-  border: none;
-  padding: 0;
-}
-
-.music-btn {
-  background: var(--tomato-red);
-  color: #fff;
-}
-
-.volume-icon {
-  background: #f7efe8;
-}
-
-/* 스피커 아이콘: 음소거여도 크기는 그대로, 소리 물결 대신 X 표시만 바뀜 */
-.icon-speaker {
-  width: 66%;
-  height: 66%;
-  overflow: visible;
-}
-.icon-speaker .spk-body {
-  fill: #6b5b55;
-}
-.icon-speaker .spk-wave,
-.icon-speaker .spk-x {
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-.icon-speaker .spk-wave {
-  stroke: #6b5b55;
-}
-.icon-speaker .spk-x {
-  stroke: var(--tomato-red);
-  display: none;
-}
-.volume-icon.is-muted .spk-wave { display: none; }
-.volume-icon.is-muted .spk-x { display: inline; }
-
-
-/* =========================================
-   호버 효과 (마우스가 있는 기기에서만)
-   - 크게 튀거나 물결이 번지는 대신, 살짝 진해지거나 그림자가 짙어지는 정도
-========================================= */
+/* =========================================================
+   14. 호버 효과 (마우스가 있는 기기에서만)
+   크게 튀는 대신 살짝 진해지거나 그림자만 짙어지게
+   ========================================================= */
 @media (hover: hover) {
   #apply-btn:hover {
     background-color: var(--shadow-red);
@@ -738,243 +994,12 @@ body.alarm-ringing .guide {
   }
 }
 
-/* 재생/일시정지 아이콘 (이모지 대신 그려서 기기마다 같은 모양) */
-.music-btn svg {
-  width: 52%;
-  height: 52%;
-  fill: currentColor;
-}
-.music-btn .icon-pause,
-.music-btn.is-playing .icon-play { display: none; }
-.music-btn.is-playing .icon-pause { display: block; }
-
-/* 설정 접기/펴기: PC에서는 요약 버튼을 숨기고 내용은 그대로 한 줄 */
-.settings-summary {
-  display: none;
-}
-
-.settings-body {
-  display: contents;
-}
-
-/* 링크 버튼 */
-.link-btn {
-  font-size: 15px;
-}
-
-.link-btn[aria-expanded="true"] {
-  background: #f3e6dc;
-}
-
-/* 링크 입력 + 영상 패널 */
-.music-panel {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
-  z-index: 6000;
-  width: 384px;
-  padding: 14px;
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 14px 36px rgba(120, 80, 60, 0.18), 0 2px 6px rgba(120, 80, 60, 0.06);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-6px);
-  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
-}
-
-.music-player.panel-open .music-panel {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
-/* 볼륨 조절이 열려 있는 동안은 링크 패널을 잠깐 숨김 (겹침 방지)
-   - 서로 바뀌는 순간 둘이 동시에 보이지 않도록, 사라지는 쪽은 페이드 없이 바로 숨김 */
-.music-player.panel-open.volume-open .music-panel {
-  opacity: 0;
-  visibility: hidden;
-  transition: none;
-}
-
-.music-player.panel-open .volume-dropdown {
-  transition: none;
-}
-
-.music-form {
-  display: flex;
-  gap: 8px;
-}
-
-.music-panel .music-form input {
-  flex: 1;
-  min-width: 0;
-  width: auto;
-  height: 40px;
-  padding: 0 14px;
-  border: 1.5px solid #eadfd2;
-  border-radius: 999px;
-  background: #fffaf3;
-  font-size: 14px;
-  color: var(--text-color);
-}
-
-.music-panel .music-form input:focus-visible {
-  border-color: var(--tomato-red);
-  box-shadow: 0 0 0 3px rgba(239, 102, 90, 0.15);
-}
-
-.music-load {
-  height: 40px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 999px;
-  background: var(--tomato-red);
-  color: #fff;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-/* 유튜브 이용 약관상 영상은 200px 이상 크기로 보이게 둠 */
-.music-video {
-  margin-top: 12px;
-  width: 356px;
-  height: 200px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #f6efe6;
-  display: none;
-}
-
-.music-player.has-video .music-video {
-  display: block;
-}
-
-.music-video iframe {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
-.music-now {
-  margin: 10px 4px 0;
-  font-size: 13px;
-  line-height: 1.4;
-  color: #a08f86;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.volume-control {
-  position: relative;
-  display: flex;
-  align-items: center;
-  overflow: visible;
-  z-index: 4000;
-}
-
-/* 드롭다운: 버튼 아래로 */
-.volume-dropdown {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  top: 46px; /* 버튼(36px) + 간격(10px) */
-  width: 56px;
-  height: 190px;
-  background: white;
-  border: none;
-  border-radius: 16px;
-  padding: 12px 10px;
-  box-shadow: 0 8px 25px rgba(242, 76, 61, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.18s ease, visibility 0.18s ease;
-  z-index: 5000;
-}
-
-.volume-control.open .volume-dropdown {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-}
-
-
-/* 볼륨 슬라이더 (세로로 회전) */
-input[type="range"].volume-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 160px;     /* 세로 길이로 보일 길이 */
-  height: 16px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  display: block;
-  box-shadow: none;
-  cursor: pointer;
-  transform: rotate(90deg);  /* 위=최소, 아래=최대 */
-  transform-origin: 50% 50%;
-  --p: 0%;                   /* 채워진 비율 (JS에서 갱신) */
-  --track-fill: linear-gradient(
-    to right,
-    var(--tomato-red) 0%,
-    var(--tomato-red) var(--p),
-    #f1f1f1 var(--p),
-    #f1f1f1 100%
-  );
-}
-
-/* Webkit */
-.volume-slider::-webkit-slider-runnable-track {
-  height: 8px;
-  border-radius: 999px;
-  background: var(--track-fill);
-  border: 1px solid #ccc;
-}
-
-.volume-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--tomato-red);
-  border: 2px solid #fff;
-  margin-top: -6px;
-}
-
-/* Firefox */
-.volume-slider::-moz-range-track {
-  height: 8px;
-  border-radius: 999px;
-  background: var(--track-fill);
-  border: 1px solid #ccc;
-}
-.volume-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--tomato-red);
-  border: 2px solid #fff;
-}
-
-/* PC에서는 줄바꿈 숨김 */
-.mobile-break {
-  display: none;
-}
-
-/* =========================================
-   PC (769px 이상): 스크롤 없이 한 화면에 들어오게
+/* =========================================================
+   15. PC (769px 이상): 스크롤 없이 한 화면에 들어오게
    - 창이 낮으면: 높이(vh)에 맞춰 여백·토마토·글자를 함께 줄임
    - 창이 크면(QHD 등): --u 단위로 전체를 비율대로 키움
      --u = 1px (1920x1000 이하) ~ 1.4px (큰 모니터)
-========================================= */
+   ========================================================= */
 @media (min-width: 769px) {
   :root {
     --u: clamp(1px, min(0.1vh, 0.0521vw), 1.4px);
@@ -1130,12 +1155,12 @@ input[type="range"].volume-slider {
   }
 }
 
-/* =========================================
-   반쪽 화면 / 작은 노트북 (769px ~ 1559px)
+/* =========================================================
+   16. 반쪽 화면 / 작은 노트북 (769px ~ 1559px)
    - 양옆 노란 배경이 화면 폭에 비례해 보이도록 흰 영역 폭을 줄임
-   - 빗소리 플레이어가 설정 바와 겹치지 않도록 위쪽에 따로 배치
+   - 유튜브 플레이어가 설정 바와 겹치지 않도록 위쪽에 따로 배치
    - 글자/토마토 크기를 화면 폭에 맞춰 조절
-========================================= */
+   ========================================================= */
 @media (min-width: 769px) and (max-width: 1559px) {
   :root {
     --tomato-size: clamp(180px, 35.5vh, 320px);
@@ -1184,12 +1209,6 @@ input[type="range"].volume-slider {
     gap: 12px;
   }
 
-  input:not([type="range"]) {
-    width: auto;
-    min-width: 0;
-    flex: 1 1 140px;
-  }
-
   /* 음표 장식: 설정 바와 겹치지 않게 조금 아래로 */
   .note-decoration {
     top: 370px;
@@ -1216,9 +1235,9 @@ input[type="range"].volume-slider {
   }
 }
 
-/* ========================================= */
-/* 모바일 최적화 */
-/* ========================================= */
+/* =========================================================
+   17. 모바일 (768px 이하)
+   ========================================================= */
 @media (max-width: 768px) {
   /* 스크롤 활성화 */
   body {
@@ -1290,14 +1309,6 @@ input[type="range"].volume-slider {
 
   .mobile-break {
     display: block;
-  }
-
-  /* 입력 필드 */
-  input:not([type="range"]) {
-    width: 100%;
-    min-width: 0;
-    font-size: 16px;
-    flex-shrink: 0;
   }
 
   .stepper,
@@ -1376,7 +1387,6 @@ input[type="range"].volume-slider {
   .music-panel .music-form input {
     font-size: 16px; /* iOS에서 입력 시 화면이 확대되지 않게 */
   }
-
 
   /* 토마토 타이머 - 고정 크기 */
   .tomato-wrapper,

@@ -662,6 +662,31 @@ body.alarm-ringing .guide {
   background: #f7efe8;
 }
 
+/* 스피커 아이콘: 음소거여도 크기는 그대로, 소리 물결 대신 X 표시만 바뀜 */
+.icon-speaker {
+  width: 66%;
+  height: 66%;
+  overflow: visible;
+}
+.icon-speaker .spk-body {
+  fill: #6b5b55;
+}
+.icon-speaker .spk-wave,
+.icon-speaker .spk-x {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.icon-speaker .spk-wave {
+  stroke: #6b5b55;
+}
+.icon-speaker .spk-x {
+  stroke: var(--tomato-red);
+  display: none;
+}
+.volume-icon.is-muted .spk-wave { display: none; }
+.volume-icon.is-muted .spk-x { display: inline; }
+
 
 /* =========================================
    호버 효과 (마우스가 있는 기기에서만)

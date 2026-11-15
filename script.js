@@ -1,22 +1,28 @@
 // ===== Pomodoro Timer =====
 // 전역 오염을 막기 위해 전체를 즉시 실행 함수로 감쌉니다.
-// (HTML의 onclick 대신 아래 bindEvents()에서 이벤트를 연결합니다.)
+// 구성: 상수 → DOM → 저장소 → 상태 → 사운드 → 화면 그리기 → 타이머 → 세션 전환
+//       → 사용자 동작 → 설정 바(드롭다운·반복 횟수·접기) → 유튜브 플레이어 → 복원 → 시작
 (() => {
   'use strict';
 
-  /* -----------------------------
+  /* =========================================================
    * 상수
-   * ---------------------------*/
-  const TICK_MS = 250;            // 화면 갱신 주기
-  const TOAST_MS = 2500;          // 토스트 표시 시간 (CSS 진행바 애니메이션과 동일)
-  const ALARM_REPEAT = 4;         // 세션 종료 알람 반복 횟수
-  const ALARM_GAP_MS = 150;       // 알람 사이 간격
-  const DEFAULT_MUSIC_VOLUME = 0.5;
-  const MUSIC_KEY = 'pomodoro-music-v1';
-  const SETTINGS_COLLAPSE_KEY = 'pomodoro-settings-collapsed';
-  const STORAGE_KEY = 'pomodoro-state-v1';
-  const DEFAULT_REPEAT = 0;       // 반복 횟수 기본값: 0 = 무한(∞)
+   * ======================================================= */
+  const TICK_MS = 250;              // 화면 갱신 주기
+  const TOAST_MS = 2500;            // 토스트 표시 시간 (CSS 진행바 애니메이션과 동일)
+  const STATUS_SWAP_MS = 200;       // 상태 문구가 흐려졌다 바뀌는 시간 (CSS와 동일)
+  const ALARM_REPEAT = 4;           // 세션 종료 알람 반복 횟수
+  const ALARM_GAP_MS = 150;         // 알람 사이 간격
+  const DEFAULT_REPEAT = 0;         // 반복 횟수 기본값: 0 = 무한(∞)
   const MAX_REPEAT = 99;
+  const DEFAULT_MUSIC_VOLUME = 0.5;
+  const MOBILE_QUERY = '(max-width: 768px)';
+
+  const STORAGE_KEYS = {
+    timer: 'pomodoro-state-v1',
+    music: 'pomodoro-music-v1',
+    settingsCollapsed: 'pomodoro-settings-collapsed',
+  };
 
   const MSG = {
     idle: '귀여운 토마토가 당신을 기다리고 있어요!',
@@ -33,54 +39,85 @@
     gray: '#888',
   };
 
-  /* -----------------------------
+  /* =========================================================
    * DOM
-   * ---------------------------*/
+   * ======================================================= */
   const $ = (id) => document.getElementById(id);
 
   const ui = {
+    // 타이머
     display: $('display'),
     tomato: $('tomato'),
     status: $('statusText'),
-    repeatValue: $('repeatValue'),
-    repeatMinus: $('repeatMinus'),
-    repeatPlus: $('repeatPlus'),
+    setCounter: $('setCounter'),
+    skipBtn: $('skip-btn'),
+    toast: $('toast'),
+    alarm: $('alarmSound'),
+    alarmStop: $('alarmStop'),
+
+    // 설정 바
+    settings: $('settings'),
+    settingsSummary: $('settingsSummary'),
+    settingsSummaryText: $('settingsSummaryText'),
     presetDropdown: $('timePreset'),
     presetToggle: $('presetToggle'),
     presetLabel: $('presetLabel'),
     presetMenu: $('presetMenu'),
+    repeatValue: $('repeatValue'),
+    repeatMinus: $('repeatMinus'),
+    repeatPlus: $('repeatPlus'),
     applyBtn: $('apply-btn'),
     resetBtn: $('reset-btn'),
-    skipBtn: $('skip-btn'),
-    setCounter: $('setCounter'),
-    toast: $('toast'),
-    alarm: $('alarmSound'),
-    alarmStop: $('alarmStop'),
-    settings: $('settings'),
-    settingsSummary: $('settingsSummary'),
-    settingsSummaryText: $('settingsSummaryText'),
 
+    // 유튜브 플레이어
     musicPlayer: $('musicPlayer'),
     musicToggle: $('musicToggle'),
+    muteToggle: $('muteToggle'),
+    volumeSlider: $('volumeSlider'),
     linkToggle: $('linkToggle'),
     musicForm: $('musicForm'),
     musicUrl: $('musicUrl'),
     musicNow: $('musicNow'),
-    muteToggle: $('muteToggle'),
-    volumeSlider: $('volumeSlider'),
   };
 
   const clickSound = new Audio('effect.mp3');
   clickSound.preload = 'auto';
 
-  /* -----------------------------
+  /* =========================================================
+   * 저장소 (사생활 보호 모드 등에서 막혀도 앱은 그대로 동작)
+   * ======================================================= */
+  const storage = {
+    getRaw(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    },
+    getJSON(key) {
+      try {
+        return JSON.parse(localStorage.getItem(key));
+      } catch {
+        return null;
+      }
+    },
+    set(key, value) {
+      try {
+        localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+      } catch {
+        // 저장만 안 될 뿐 동작에는 영향 없음
+      }
+    },
+  };
+
+  /* =========================================================
    * 상태
-   * ---------------------------*/
+   * ======================================================= */
   const settings = {
     focusMinutes: 25,
     restMinutes: 5,
     totalSets: 0,          // 0 = 무한 반복
-    configured: false,
+    configured: false,     // '적용'을 눌렀는지
   };
 
   const timer = {
@@ -92,31 +129,21 @@
     completedSets: 0,
   };
 
-  let repeatDraft = DEFAULT_REPEAT;   // − / + 로 고르는 중인 반복 횟수 ('적용' 전)
-
-  // 집중/휴식 시간 드롭다운 ('25-5' 또는 '50-10')
-  const presetOptions = () => [...ui.presetMenu.querySelectorAll('[data-value]')];
-  const getPreset = () =>
-    (presetOptions().find((o) => o.getAttribute('aria-selected') === 'true') || presetOptions()[0]).dataset.value;
-
-  function setPreset(value) {
-    const options = presetOptions();
-    const picked = options.find((o) => o.dataset.value === value);
-    if (!picked) return false;
-    options.forEach((o) => o.setAttribute('aria-selected', String(o === picked)));
-    ui.presetLabel.textContent = picked.textContent;
-    renderSettingsSummary();
-    return true;
-  }
+  let repeatDraft = DEFAULT_REPEAT;  // −/+ 로 고르는 중인 반복 횟수 ('적용' 전)
+  let repeatEditing = false;         // 반복 횟수를 숫자키로 직접 입력하는 중인지
 
   const isInfinite = () => settings.totalSets === 0;
   const hasNextSet = () => isInfinite() || timer.completedSets < settings.totalSets;
 
-  /* -----------------------------
+  /* =========================================================
    * 유틸
-   * ---------------------------*/
+   * ======================================================= */
   const nowMs = () => performance.now();
   const minutesToMs = (min) => min * 60 * 1000;
+  const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+  const isMobileLayout = () => window.matchMedia(MOBILE_QUERY).matches;
+  const repeatLabel = (n) => (n === 0 ? '∞' : `${n}세트`);
+  const parsePreset = (value) => value.split('-').map(Number);   // '25-5' → [25, 5]
 
   function formatAsMMSS(totalSeconds) {
     const mins = Math.floor(totalSeconds / 60);
@@ -132,11 +159,11 @@
     return Math.max(0, timer.endAtMs - nowMs());
   }
 
-  /* -----------------------------
-   * 저장 / 복원 (새로고침해도 이어서)
-   * ---------------------------*/
+  /* =========================================================
+   * 타이머 저장 (새로고침해도 이어서)
+   * ======================================================= */
   function saveState() {
-    const data = {
+    storage.set(STORAGE_KEYS.timer, {
       // 적용된 설정을 저장 (선택만 바꾸고 '적용'을 안 눌렀을 때와 섞이지 않게)
       preset: settings.configured
         ? `${settings.focusMinutes}-${settings.restMinutes}`
@@ -148,25 +175,12 @@
       completedSets: timer.completedSets,
       remainingMs: timer.running ? remainingMs() : timer.pausedRemainingMs,
       savedAt: Date.now(),
-    };
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch {
-      // 사생활 보호 모드 등에서 저장이 막혀도 타이머는 그대로 동작
-    }
+    });
   }
 
-  function loadState() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY));
-    } catch {
-      return null;
-    }
-  }
-
-  /* -----------------------------
+  /* =========================================================
    * 사운드
-   * ---------------------------*/
+   * ======================================================= */
   function playClickSound() {
     clickSound.currentTime = 0;
     clickSound.play().catch(() => {});
@@ -175,9 +189,13 @@
   let alarmRepeatTimer = null;
   let alarmEndedHandler = null;
 
-  function stopAlarm() {
-    if (!ui.alarm) return;
+  // '알람 끄기' 버튼은 알람이 실제로 울리는 동안에만 보임
+  function setAlarmStopVisible(visible) {
+    ui.alarmStop.hidden = !visible;
+    document.body.classList.toggle('alarm-ringing', visible);
+  }
 
+  function stopAlarm() {
     clearTimeout(alarmRepeatTimer);
     alarmRepeatTimer = null;
 
@@ -191,15 +209,7 @@
     setAlarmStopVisible(false);
   }
 
-  // '알람 끄기' 버튼은 알람이 실제로 울리는 동안에만 보임
-  function setAlarmStopVisible(visible) {
-    if (!ui.alarmStop) return;
-    ui.alarmStop.hidden = !visible;
-    document.body.classList.toggle('alarm-ringing', visible);
-  }
-
   function playAlarm(times = ALARM_REPEAT, gapMs = ALARM_GAP_MS) {
-    if (!ui.alarm) return;
     stopAlarm();
 
     let played = 0;
@@ -224,9 +234,9 @@
     playOnce();
   }
 
-  /* -----------------------------
-   * 렌더링
-   * ---------------------------*/
+  /* =========================================================
+   * 화면 그리기
+   * ======================================================= */
   function renderTime(seconds) {
     ui.display.textContent = formatAsMMSS(seconds);
   }
@@ -245,49 +255,29 @@
       ui.status.textContent = text;
       ui.status.style.color = color;
       ui.status.classList.remove('is-swapping');
-    }, 200);
-  }
-
-  // 모바일 설정 접기 버튼에 보이는 요약: '25분 집중 / 5분 휴식 · ∞'
-  function renderSettingsSummary() {
-    if (!ui.settingsSummaryText) return;
-    const repeatText = repeatDraft === 0 ? '∞' : `${repeatDraft}세트`;
-    ui.settingsSummaryText.textContent = `${ui.presetLabel.textContent} · ${repeatText}`;
-  }
-
-  function setSettingsCollapsed(collapsed) {
-    ui.settings.classList.toggle('collapsed', collapsed);
-    ui.settingsSummary.setAttribute('aria-expanded', String(!collapsed));
-    try {
-      localStorage.setItem(SETTINGS_COLLAPSE_KEY, collapsed ? '1' : '0');
-    } catch {
-      // 저장이 막혀도 접기는 그대로 동작
-    }
-  }
-
-  const isMobileLayout = () => window.matchMedia('(max-width: 768px)').matches;
-
-  let repeatEditing = false;   // 세트 숫자를 직접 입력하는 중인지
-
-  function renderRepeat() {
-    // 입력 중일 때는 사용자가 치는 숫자를 덮어쓰지 않음
-    if (!repeatEditing) {
-      ui.repeatValue.value = repeatDraft === 0 ? '∞' : `${repeatDraft}세트`;
-    }
-    ui.repeatMinus.disabled = repeatDraft === 0;
-    renderSettingsSummary();
-    ui.repeatPlus.disabled = repeatDraft >= MAX_REPEAT;
+    }, STATUS_SWAP_MS);
   }
 
   function renderTomato() {
     ui.tomato.classList.toggle('running', timer.running);
-    ui.tomato.classList.toggle('break', !timer.isFocus);
   }
 
   function renderSetCounter() {
-    let total = '?';
-    if (settings.configured) total = isInfinite() ? '∞' : `${settings.totalSets}세트`;
+    const total = settings.configured ? repeatLabel(settings.totalSets) : '?';
     ui.setCounter.textContent = `완료한 세트: ${timer.completedSets}세트 / ${total}`;
+  }
+
+  function renderRepeat() {
+    // 입력 중일 때는 사용자가 치는 숫자를 덮어쓰지 않음
+    if (!repeatEditing) ui.repeatValue.value = repeatLabel(repeatDraft);
+    ui.repeatMinus.disabled = repeatDraft === 0;
+    ui.repeatPlus.disabled = repeatDraft >= MAX_REPEAT;
+    renderSettingsSummary();
+  }
+
+  // 모바일 설정 접기 버튼에 보이는 요약: '25분 집중 / 5분 휴식 · ∞'
+  function renderSettingsSummary() {
+    ui.settingsSummaryText.textContent = `${ui.presetLabel.textContent} · ${repeatLabel(repeatDraft)}`;
   }
 
   let toastTimer = null;
@@ -308,9 +298,9 @@
     toastTimer = setTimeout(() => ui.toast.classList.remove('show'), TOAST_MS);
   }
 
-  /* -----------------------------
-   * 타이머 루프
-   * ---------------------------*/
+  /* =========================================================
+   * 타이머
+   * ======================================================= */
   function stopTickLoop() {
     clearInterval(timer.intervalId);
     timer.intervalId = null;
@@ -353,9 +343,21 @@
     saveState();
   }
 
-  /* -----------------------------
-   * 세션 전환
-   * ---------------------------*/
+  // 진행 중인 세션만 초기화 (설정과 완료 세트 수는 유지)
+  function resetRuntime() {
+    stopTickLoop();
+    timer.running = false;
+    timer.isFocus = true;
+    timer.pausedRemainingMs = 0;
+    timer.endAtMs = 0;
+
+    renderTomato();
+    renderTime(settings.focusMinutes * 60);
+  }
+
+  /* =========================================================
+   * 세션 전환 (집중 → 휴식 → 다음 세트)
+   * ======================================================= */
   function onSessionFinished({ skipped = false } = {}) {
     if (!skipped) playAlarm();
     timer.pausedRemainingMs = 0;
@@ -388,40 +390,9 @@
     saveState();
   }
 
-  /* -----------------------------
-   * 초기화
-   * ---------------------------*/
-  // 진행 중인 세션만 초기화 (설정과 완료 세트 수는 유지)
-  function resetRuntime() {
-    stopTickLoop();
-    timer.running = false;
-    timer.isFocus = true;
-    timer.pausedRemainingMs = 0;
-    timer.endAtMs = 0;
-
-    renderTomato();
-    renderTime(settings.focusMinutes * 60);
-  }
-
-  // 전체 초기화 (설정까지 지움)
-  function resetAll() {
-    stopAlarm();
-    resetRuntime();
-
-    repeatDraft = DEFAULT_REPEAT;
-    renderRepeat();
-    settings.totalSets = 0;
-    settings.configured = false;
-    timer.completedSets = 0;
-
-    renderSetCounter();
-    renderStatus(MSG.idle, COLOR.red);
-    saveState();
-  }
-
-  /* -----------------------------
+  /* =========================================================
    * 사용자 동작
-   * ---------------------------*/
+   * ======================================================= */
   function ensureConfigured() {
     if (settings.configured) return true;
     showToast("😭먼저 반복 횟수를 고르고 '적용' 버튼을 눌러주세요!");
@@ -436,7 +407,7 @@
     else startTimer();
   }
 
-  // 지금 세션을 바로 끝내고 다음 단계(집중 → 휴식 → 다음 세트)로 넘어갑니다.
+  // 지금 세션을 바로 끝내고 다음 단계로 넘어갑니다 (알람 없음).
   function onSkipClick() {
     playClickSound();
     if (!ensureConfigured()) return;
@@ -446,14 +417,15 @@
     onSessionFinished({ skipped: true });
   }
 
+  function applyPresetToSettings() {
+    [settings.focusMinutes, settings.restMinutes] = parsePreset(getPreset());
+  }
+
   function onApplyClick() {
     playClickSound();
 
-    const repeat = repeatDraft;
-    const [focus, rest] = getPreset().split('-').map(Number);
-    settings.focusMinutes = focus;
-    settings.restMinutes = rest;
-    settings.totalSets = repeat;
+    applyPresetToSettings();
+    settings.totalSets = repeatDraft;
     settings.configured = true;
     timer.completedSets = 0;
 
@@ -466,21 +438,224 @@
     saveState();
   }
 
+  // 전체 초기화 (설정까지 지움)
   function onResetClick() {
     playClickSound();
-    resetAll();
+    stopAlarm();
+    resetRuntime();
+
+    repeatDraft = DEFAULT_REPEAT;
+    renderRepeat();
+    settings.totalSets = 0;
+    settings.configured = false;
+    timer.completedSets = 0;
+
+    renderSetCounter();
+    renderStatus(MSG.idle, COLOR.red);
+    saveState();
     showToast('✔️초기화 되었습니다!');
   }
 
-  // 탭이 백그라운드에 있는 동안 브라우저가 setInterval을 늦추므로,
-  // 다시 보일 때 즉시 시간을 맞춥니다.
-  function onVisibilityChange() {
-    if (timer.running) tick();
+  function onAlarmStopClick() {
+    stopAlarm();
+    showToast('🔕알람을 껐어요');
   }
 
-  /* -----------------------------
+  /* =========================================================
+   * 설정 바 ① 집중/휴식 시간 드롭다운
+   * ======================================================= */
+  const presetOptions = () => [...ui.presetMenu.querySelectorAll('[data-value]')];
+
+  // 지금 선택된 값 ('10-2' / '25-5' / '50-10')
+  const getPreset = () =>
+    (presetOptions().find((o) => o.getAttribute('aria-selected') === 'true') || presetOptions()[0]).dataset.value;
+
+  function setPreset(value) {
+    const options = presetOptions();
+    const picked = options.find((o) => o.dataset.value === value);
+    if (!picked) return;
+    options.forEach((o) => o.setAttribute('aria-selected', String(o === picked)));
+    ui.presetLabel.textContent = picked.textContent;
+    renderSettingsSummary();
+  }
+
+  function initPresetDropdown() {
+    const { presetDropdown: root, presetToggle: toggle, presetMenu: menu } = ui;
+    let activeIndex = 0;
+
+    const isOpen = () => root.classList.contains('open');
+    const optionFromEvent = (e) => e.target instanceof Element && e.target.closest('[data-value]');
+
+    function highlight(i) {
+      const options = presetOptions();
+      activeIndex = (i + options.length) % options.length;
+      options.forEach((o, k) => o.classList.toggle('active', k === activeIndex));
+    }
+
+    function open() {
+      root.classList.add('open');
+      toggle.setAttribute('aria-expanded', 'true');
+      highlight(presetOptions().findIndex((o) => o.dataset.value === getPreset()));
+      menu.focus({ preventScroll: true });
+    }
+
+    function close({ focusToggle = false } = {}) {
+      if (!isOpen()) return;
+      root.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+      if (focusToggle) toggle.focus({ preventScroll: true });
+    }
+
+    function choose(i) {
+      setPreset(presetOptions()[i].dataset.value);
+      close({ focusToggle: true });
+    }
+
+    toggle.addEventListener('click', () => {
+      playClickSound();
+      if (isOpen()) close();
+      else open();
+    });
+
+    menu.addEventListener('click', (e) => {
+      const option = optionFromEvent(e);
+      if (!option) return;
+      playClickSound();
+      choose(presetOptions().indexOf(option));
+    });
+
+    menu.addEventListener('mousemove', (e) => {
+      const option = optionFromEvent(e);
+      if (option) highlight(presetOptions().indexOf(option));
+    });
+
+    // 키보드: 닫혀 있을 때 ↑↓로 열기
+    toggle.addEventListener('keydown', (e) => {
+      if (!isOpen() && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        e.stopPropagation();   // 여는 키가 아래 '열려 있을 때' 처리로 한 칸 더 움직이지 않게
+        open();
+      }
+    });
+
+    // 열려 있을 때: ↑↓ 이동, Enter/Space 선택, Esc 닫기, Tab 닫기
+    // (마우스로 연 뒤엔 포커스가 메뉴 밖에 있을 수 있어서 문서 전체에서 받음)
+    document.addEventListener('keydown', (e) => {
+      if (!isOpen()) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        highlight(activeIndex + (e.key === 'ArrowDown' ? 1 : -1));
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopImmediatePropagation();   // 스페이스바 타이머 단축키와 겹치지 않게
+        choose(activeIndex);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        close({ focusToggle: true });
+      } else if (e.key === 'Tab') {
+        close();
+      }
+    });
+
+    // 바깥을 누르면 닫기
+    document.addEventListener('pointerdown', (e) => {
+      if (isOpen() && !root.contains(e.target)) close();
+    });
+  }
+
+  /* =========================================================
+   * 설정 바 ② 반복 횟수 (−/+ 버튼, 숫자 클릭 후 직접 입력)
+   * ======================================================= */
+  function setRepeatDraft(n) {
+    repeatDraft = clamp(n, 0, MAX_REPEAT);
+    renderRepeat();
+  }
+
+  function initRepeatStepper() {
+    const input = ui.repeatValue;
+    let canceled = false;
+    let justFocused = false;
+
+    ui.repeatMinus.addEventListener('click', () => {
+      playClickSound();
+      setRepeatDraft(repeatDraft - 1);
+    });
+
+    ui.repeatPlus.addEventListener('click', () => {
+      playClickSound();
+      setRepeatDraft(repeatDraft + 1);
+    });
+
+    // 숫자를 클릭하면 숫자키로 직접 입력 (Enter/바깥 클릭으로 확정, Esc로 취소, 0 또는 비우면 ∞)
+    input.addEventListener('focus', () => {
+      repeatEditing = true;
+      canceled = false;
+      justFocused = true;
+      input.value = repeatDraft === 0 ? '' : String(repeatDraft);
+      input.placeholder = '∞';
+      input.select();   // 바로 덮어쓰며 입력할 수 있게 전체 선택
+    });
+
+    // 클릭으로 들어올 때 마우스를 떼는 순간 선택이 풀리지 않게
+    input.addEventListener('mouseup', (e) => {
+      if (justFocused) e.preventDefault();
+      justFocused = false;
+    });
+
+    input.addEventListener('input', () => {
+      input.value = input.value.replace(/\D/g, '').slice(0, 2);
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        input.blur();
+      } else if (e.key === 'Escape') {
+        canceled = true;
+        input.blur();
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const n = parseInt(input.value, 10) || 0;
+        const next = clamp(n + (e.key === 'ArrowUp' ? 1 : -1), 0, MAX_REPEAT);
+        input.value = next === 0 ? '' : String(next);
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      repeatEditing = false;
+      input.placeholder = '';
+      if (canceled) {
+        renderRepeat();
+        return;
+      }
+      const n = parseInt(input.value, 10);
+      setRepeatDraft(Number.isNaN(n) ? 0 : n);
+    });
+  }
+
+  /* =========================================================
+   * 설정 바 ③ 접기/펴기 (모바일 전용, PC에서는 요약 버튼이 안 보임)
+   * ======================================================= */
+  function setSettingsCollapsed(collapsed) {
+    ui.settings.classList.toggle('collapsed', collapsed);
+    ui.settingsSummary.setAttribute('aria-expanded', String(!collapsed));
+    storage.set(STORAGE_KEYS.settingsCollapsed, collapsed ? '1' : '0');
+  }
+
+  function initSettingsCollapse() {
+    ui.settingsSummary.addEventListener('click', () => {
+      playClickSound();
+      setSettingsCollapsed(!ui.settings.classList.contains('collapsed'));
+    });
+
+    // 처음엔 접힌 상태로 시작 (사용자가 편 적이 있으면 그 상태 유지)
+    const saved = storage.getRaw(STORAGE_KEYS.settingsCollapsed);
+    setSettingsCollapsed(saved === null ? true : saved === '1');
+  }
+
+  /* =========================================================
    * 유튜브 플레이어 (링크를 넣으면 배경음악처럼 반복 재생)
-   * ---------------------------*/
+   * ======================================================= */
 
   // 여러 형태의 유튜브 주소에서 영상 ID / 재생목록 ID / 시작 시간을 꺼냄
   function parseYouTubeUrl(input) {
@@ -525,9 +700,33 @@
     return { videoId, listId, start };
   }
 
+  // 유튜브 IFrame API를 한 번만 불러옴
+  let ytApiPromise = null;
+
+  function loadYouTubeApi() {
+    if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+    if (ytApiPromise) return ytApiPromise;
+
+    ytApiPromise = new Promise((resolve, reject) => {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (typeof prev === 'function') prev();
+        resolve(window.YT);
+      };
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      tag.async = true;
+      tag.onerror = () => {
+        ytApiPromise = null;
+        reject(new Error('youtube api load failed'));
+      };
+      document.head.appendChild(tag);
+    });
+    return ytApiPromise;
+  }
+
   function initMusicPlayer() {
     const { musicPlayer: root, musicToggle, muteToggle, volumeSlider, linkToggle, musicForm, musicUrl, musicNow } = ui;
-    if (!root || !musicToggle || !muteToggle || !volumeSlider) return;
 
     const toNumber = (v) => {
       const n = Number(v);
@@ -535,12 +734,7 @@
     };
 
     // 저장된 설정 (마지막 링크, 볼륨, 음소거)
-    let saved = {};
-    try {
-      saved = JSON.parse(localStorage.getItem(MUSIC_KEY)) || {};
-    } catch {
-      saved = {};
-    }
+    const saved = storage.getJSON(STORAGE_KEYS.music) || {};
 
     const state = {
       volume: Number.isFinite(saved.volume) ? saved.volume : DEFAULT_MUSIC_VOLUME,
@@ -553,15 +747,13 @@
       pendingAutoplay: false,
     };
 
+    const isSilent = () => state.muted || state.volume === 0;
+
     function saveMusic() {
-      try {
-        localStorage.setItem(MUSIC_KEY, JSON.stringify({ url: state.url, volume: state.volume, muted: state.muted }));
-      } catch {
-        // 저장이 막혀도 재생은 그대로
-      }
+      storage.set(STORAGE_KEYS.music, { url: state.url, volume: state.volume, muted: state.muted });
     }
 
-    /* ---- UI ---- */
+    /* ---- 화면 ---- */
     function setSliderFill() {
       const min = toNumber(volumeSlider.min);
       const max = toNumber(volumeSlider.max) || 1;
@@ -577,16 +769,15 @@
 
     function syncVolumeUI() {
       volumeSlider.value = String(state.volume);
-      const isSilent = state.muted || state.volume === 0;
-      muteToggle.classList.toggle('is-muted', isSilent);
-      muteToggle.setAttribute('aria-label', isSilent ? '음소거 해제' : '음소거');
+      muteToggle.classList.toggle('is-muted', isSilent());
+      muteToggle.setAttribute('aria-label', isSilent() ? '음소거 해제' : '음소거');
       setSliderFill();
     }
 
     function applyVolumeToPlayer() {
       if (!state.ready) return;
       state.player.setVolume(Math.round(state.volume * 100));
-      if (state.muted || state.volume === 0) state.player.mute();
+      if (isSilent()) state.player.mute();
       else state.player.unMute();
     }
 
@@ -595,8 +786,35 @@
       musicNow.title = text;
     }
 
-    /* ---- 패널 열기/닫기 ---- */
+    function updateNowPlaying() {
+      if (!state.ready) return;
+      const title = state.player.getVideoData?.().title;
+      if (title) setNowText(`♪ ${title}`);
+    }
+
+    /* ---- 링크 패널 · 볼륨 조절 (둘이 겹치지 않게 한 번에 하나만 보임) ---- */
+    const volumeControl = muteToggle.closest('.volume-control');
+    const volumeDropdown = volumeControl.querySelector('.volume-dropdown');
+    let volumeCloseTimer = null;
+
     const isPanelOpen = () => root.classList.contains('panel-open');
+
+    function openVolume() {
+      clearTimeout(volumeCloseTimer);
+      volumeControl.classList.add('open');
+      root.classList.add('volume-open');   // 열려 있는 링크 패널은 잠깐 숨김
+    }
+
+    function closeVolume() {
+      clearTimeout(volumeCloseTimer);
+      volumeControl.classList.remove('open');
+      root.classList.remove('volume-open');
+    }
+
+    function scheduleCloseVolume() {
+      clearTimeout(volumeCloseTimer);
+      volumeCloseTimer = setTimeout(closeVolume, 120);
+    }
 
     function openPanel() {
       closeVolume();
@@ -610,37 +828,7 @@
       linkToggle.setAttribute('aria-expanded', 'false');
     }
 
-    /* ---- 유튜브 API ---- */
-    let apiPromise = null;
-
-    function loadYouTubeApi() {
-      if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
-      if (apiPromise) return apiPromise;
-
-      apiPromise = new Promise((resolve, reject) => {
-        const prev = window.onYouTubeIframeAPIReady;
-        window.onYouTubeIframeAPIReady = () => {
-          if (typeof prev === 'function') prev();
-          resolve(window.YT);
-        };
-        const tag = document.createElement('script');
-        tag.src = 'https://www.youtube.com/iframe_api';
-        tag.async = true;
-        tag.onerror = () => {
-          apiPromise = null;
-          reject(new Error('youtube api load failed'));
-        };
-        document.head.appendChild(tag);
-      });
-      return apiPromise;
-    }
-
-    function updateNowPlaying() {
-      if (!state.ready) return;
-      const title = state.player.getVideoData?.().title;
-      if (title) setNowText(`♪ ${title}`);
-    }
-
+    /* ---- 유튜브 플레이어 이벤트 ---- */
     function onPlayerStateChange(e) {
       const S = window.YT.PlayerState;
       if (e.data === S.PLAYING) {
@@ -669,6 +857,15 @@
       showToast(`😭${msg}`);
     }
 
+    function onPlayerReady(source) {
+      state.ready = true;
+      applyVolumeToPlayer();
+      if (source.listId) state.player.setLoop(true);
+      if (state.pendingAutoplay) state.player.playVideo();
+      else setNowText('▶를 누르면 재생돼요');
+      updateNowPlaying();
+    }
+
     async function loadSource(source, { autoplay }) {
       state.source = source;
       root.classList.add('has-video');
@@ -683,20 +880,17 @@
         return;
       }
 
-      const listOpts = source.listId
-        ? { listType: 'playlist', list: source.listId, index: 0, startSeconds: source.start }
-        : null;
-
       // 이미 플레이어가 있으면 영상만 바꿈
       if (state.player && state.ready) {
-        if (listOpts) {
+        if (source.listId) {
+          const listOpts = { listType: 'playlist', list: source.listId, index: 0, startSeconds: source.start };
           if (autoplay) state.player.loadPlaylist(listOpts);
           else state.player.cuePlaylist(listOpts);
           state.player.setLoop(true);
-        } else if (autoplay) {
-          state.player.loadVideoById({ videoId: source.videoId, startSeconds: source.start });
         } else {
-          state.player.cueVideoById({ videoId: source.videoId, startSeconds: source.start });
+          const videoOpts = { videoId: source.videoId, startSeconds: source.start };
+          if (autoplay) state.player.loadVideoById(videoOpts);
+          else state.player.cueVideoById(videoOpts);
         }
         return;
       }
@@ -715,21 +909,14 @@
         videoId: source.videoId || undefined,
         playerVars,
         events: {
-          onReady: () => {
-            state.ready = true;
-            applyVolumeToPlayer();
-            if (source.listId) state.player.setLoop(true);
-            if (state.pendingAutoplay) state.player.playVideo();
-            if (!state.pendingAutoplay) setNowText('▶를 누르면 재생돼요');
-            updateNowPlaying();
-          },
+          onReady: () => onPlayerReady(source),
           onStateChange: onPlayerStateChange,
           onError: onPlayerError,
         },
       });
     }
 
-    /* ---- 이벤트 ---- */
+    /* ---- 사용자 동작 ---- */
     musicForm.addEventListener('submit', (e) => {
       e.preventDefault();
       playClickSound();
@@ -783,7 +970,12 @@
       saveMusic();
     });
 
-    // 패널 바깥을 누르거나 Esc를 누르면 닫기 (재생은 계속됨)
+    // 볼륨: 스피커 버튼에 마우스를 올리면 열리고, 영역을 벗어나면 닫힘
+    muteToggle.addEventListener('mouseenter', openVolume);
+    volumeDropdown.addEventListener('mouseenter', openVolume);
+    volumeControl.addEventListener('mouseleave', scheduleCloseVolume);
+
+    // 링크 패널: 바깥을 누르거나 Esc를 누르면 닫기 (재생은 계속됨)
     document.addEventListener('pointerdown', (e) => {
       if (isPanelOpen() && !root.contains(e.target)) closePanel();
     });
@@ -794,88 +986,60 @@
       }
     });
 
-    // 볼륨 드롭다운: 스피커 버튼에 호버하면 열리고, 영역을 벗어나면 닫힘
-    // 링크 패널과 겹치지 않도록, 볼륨이 열려 있는 동안은 패널을 잠깐 숨김
-    const volumeControl = muteToggle.closest('.volume-control');
-    const volumeDropdown = volumeControl?.querySelector('.volume-dropdown');
-    let volumeCloseTimer = null;
-
-    function openVolume() {
-      clearTimeout(volumeCloseTimer);
-      volumeControl.classList.add('open');
-      root.classList.add('volume-open');
-    }
-
-    function closeVolume() {
-      clearTimeout(volumeCloseTimer);
-      volumeControl?.classList.remove('open');
-      root.classList.remove('volume-open');
-    }
-
-    if (volumeControl && volumeDropdown) {
-      const scheduleClose = () => {
-        clearTimeout(volumeCloseTimer);
-        volumeCloseTimer = setTimeout(closeVolume, 120);
-      };
-      muteToggle.addEventListener('mouseenter', openVolume);
-      volumeDropdown.addEventListener('mouseenter', openVolume);
-      volumeControl.addEventListener('mouseleave', scheduleClose);
-    }
-
     /* ---- 시작 ---- */
     syncVolumeUI();
     setPlayingUI(false);
 
     // 지난번에 넣은 링크가 있으면 미리 불러둠 (자동재생은 브라우저가 막으므로 ▶로 재생)
-    if (saved.url) {
-      const source = parseYouTubeUrl(saved.url);
-      if (source) {
-        state.url = saved.url;
-        musicUrl.value = saved.url;
-        loadSource(source, { autoplay: false });
-      }
+    const savedSource = saved.url && parseYouTubeUrl(saved.url);
+    if (savedSource) {
+      state.url = saved.url;
+      musicUrl.value = saved.url;
+      loadSource(savedSource, { autoplay: false });
     }
   }
 
-  /* -----------------------------
-   * 복원
-   * ---------------------------*/
+  /* =========================================================
+   * 복원 (새로고침·재방문 시 이어서)
+   * ======================================================= */
+  // 페이지가 닫혀 있던 동안 흐른 시간만큼 세션을 진행시킴 (알람 없이)
+  // 반환값: 모든 세트가 끝났으면 null, 아니면 지금 세션의 남은 시간(ms)
+  function catchUpElapsed(leftMs) {
+    while (leftMs <= 0) {
+      if (timer.isFocus) {
+        timer.isFocus = false;
+      } else {
+        timer.completedSets += 1;
+        if (!hasNextSet()) return null;
+        timer.isFocus = true;
+      }
+      leftMs += currentSessionMs();
+    }
+    return leftMs;
+  }
+
   function restoreState() {
-    const data = loadState();
+    const data = storage.getJSON(STORAGE_KEYS.timer);
     if (!data) return;
 
     setPreset(data.preset);
     if (!data.configured) return;
 
-    const [focus, rest] = getPreset().split('-').map(Number);
-    settings.focusMinutes = focus;
-    settings.restMinutes = rest;
+    applyPresetToSettings();
     settings.totalSets = Math.max(0, Number(data.totalSets) || 0);
     settings.configured = true;
-    repeatDraft = Math.min(MAX_REPEAT, settings.totalSets);
-    renderRepeat();
+    setRepeatDraft(settings.totalSets);
 
     timer.isFocus = data.isFocus !== false;
     timer.completedSets = Math.max(0, Number(data.completedSets) || 0);
     let leftMs = Math.max(0, Number(data.remainingMs) || 0);
 
     if (data.running) {
-      // 페이지가 닫혀 있던 동안 흐른 시간만큼 세션을 진행시킴 (알람 없이)
       leftMs -= Date.now() - (Number(data.savedAt) || Date.now());
-      let finished = false;
-      while (leftMs <= 0) {
-        if (timer.isFocus) {
-          timer.isFocus = false;
-        } else {
-          timer.completedSets += 1;
-          if (!hasNextSet()) { finished = true; break; }
-          timer.isFocus = true;
-        }
-        leftMs += currentSessionMs();
-      }
-
+      leftMs = catchUpElapsed(leftMs);
       renderSetCounter();
-      if (finished) {
+
+      if (leftMs === null) {
         resetRuntime();
         renderStatus(MSG.done, COLOR.red);
         saveState();
@@ -900,180 +1064,33 @@
     }
   }
 
-  /* -----------------------------
-   * 집중/휴식 시간 드롭다운
-   * ---------------------------*/
-  function initPresetDropdown() {
-    const { presetDropdown: root, presetToggle: toggle, presetMenu: menu } = ui;
-    let activeIndex = 0;
+  /* =========================================================
+   * 키보드 단축키
+   * ======================================================= */
+  const isTypingTarget = (el) =>
+    el instanceof Element && !!el.closest('input, select, textarea, [contenteditable="true"]');
 
-    const isOpen = () => root.classList.contains('open');
-
-    function highlight(i) {
-      const options = presetOptions();
-      activeIndex = (i + options.length) % options.length;
-      options.forEach((o, k) => o.classList.toggle('active', k === activeIndex));
-    }
-
-    function open() {
-      root.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
-      highlight(presetOptions().findIndex((o) => o.dataset.value === getPreset()));
-      menu.focus({ preventScroll: true });
-    }
-
-    function close({ focusToggle = false } = {}) {
-      if (!isOpen()) return;
-      root.classList.remove('open');
-      toggle.setAttribute('aria-expanded', 'false');
-      if (focusToggle) toggle.focus({ preventScroll: true });
-    }
-
-    function choose(i) {
-      setPreset(presetOptions()[i].dataset.value);
-      close({ focusToggle: true });
-    }
-
-    toggle.addEventListener('click', () => {
-      playClickSound();
-      if (isOpen()) close();
-      else open();
-    });
-
-    menu.addEventListener('click', (e) => {
-      const option = e.target instanceof Element && e.target.closest('[data-value]');
-      if (!option) return;
-      playClickSound();
-      choose(presetOptions().indexOf(option));
-    });
-
-    menu.addEventListener('mousemove', (e) => {
-      const option = e.target instanceof Element && e.target.closest('[data-value]');
-      if (option) highlight(presetOptions().indexOf(option));
-    });
-
-    // 키보드: ↑↓로 이동, Enter/Space로 선택, Esc로 닫기
-    root.addEventListener('keydown', (e) => {
-      if (!isOpen()) {
-        if (e.target === toggle && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-          e.preventDefault();
-          open();
-        }
-        return;
-      }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        highlight(activeIndex + (e.key === 'ArrowDown' ? 1 : -1));
-      } else if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        e.stopPropagation();
-        choose(activeIndex);
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        close({ focusToggle: true });
-      } else if (e.key === 'Tab') {
-        close();
-      }
-    });
-
-    // 바깥을 누르면 닫기
-    document.addEventListener('pointerdown', (e) => {
-      if (isOpen() && !root.contains(e.target)) close();
-    });
-  }
-
-  /* -----------------------------
-   * 시작
-   * ---------------------------*/
-  function isTypingTarget(el) {
-    return el instanceof Element && !!el.closest('input, select, textarea, [contenteditable="true"]');
-  }
-
-  function bindEvents() {
-    ui.tomato.addEventListener('click', onTomatoClick);
-    // 키보드 사용자도 토마토를 시작/정지할 수 있도록 (Enter / Space)
+  function initKeyboard() {
+    // 토마토에 포커스가 있을 때 Enter / Space
     ui.tomato.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         onTomatoClick();
       }
     });
-    ui.applyBtn.addEventListener('click', onApplyClick);
-    ui.resetBtn.addEventListener('click', onResetClick);
-    ui.skipBtn.addEventListener('click', onSkipClick);
-    ui.alarmStop.addEventListener('click', () => {
-      stopAlarm();
-      showToast('🔕알람을 껐어요');
-    });
-    // Esc로도 알람 끄기
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !ui.alarmStop.hidden) stopAlarm();
-    });
-    initPresetDropdown();
-    ui.settingsSummary.addEventListener('click', () => {
-      playClickSound();
-      setSettingsCollapsed(!ui.settings.classList.contains('collapsed'));
-    });
-    ui.repeatMinus.addEventListener('click', () => {
-      playClickSound();
-      repeatDraft = Math.max(0, repeatDraft - 1);
-      renderRepeat();
-    });
-    // 세트 숫자를 클릭하면 숫자키로 직접 입력 (Enter/바깥 클릭으로 확정, Esc로 취소, 0 또는 비우면 ∞)
-    let repeatEditCanceled = false;
-    let repeatJustFocused = false;
-    ui.repeatValue.addEventListener('focus', () => {
-      repeatEditing = true;
-      repeatEditCanceled = false;
-      repeatJustFocused = true;
-      ui.repeatValue.value = repeatDraft === 0 ? '' : String(repeatDraft);
-      ui.repeatValue.placeholder = '∞';
-      ui.repeatValue.select();   // 바로 덮어쓰며 입력할 수 있게 전체 선택
-    });
-    // 클릭으로 들어올 때 마우스를 떼는 순간 선택이 풀리지 않게
-    ui.repeatValue.addEventListener('mouseup', (e) => {
-      if (repeatJustFocused) e.preventDefault();
-      repeatJustFocused = false;
-    });
-    ui.repeatValue.addEventListener('input', () => {
-      ui.repeatValue.value = ui.repeatValue.value.replace(/\D/g, '').slice(0, 2);
-    });
-    ui.repeatValue.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        ui.repeatValue.blur();
-      } else if (e.key === 'Escape') {
-        repeatEditCanceled = true;
-        ui.repeatValue.blur();
-      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        const n = parseInt(ui.repeatValue.value, 10) || 0;
-        const next = Math.min(MAX_REPEAT, Math.max(0, n + (e.key === 'ArrowUp' ? 1 : -1)));
-        ui.repeatValue.value = next === 0 ? '' : String(next);
-      }
-    });
-    ui.repeatValue.addEventListener('blur', () => {
-      repeatEditing = false;
-      if (!repeatEditCanceled) {
-        const n = parseInt(ui.repeatValue.value, 10);
-        repeatDraft = Number.isNaN(n) ? 0 : Math.min(MAX_REPEAT, Math.max(0, n));
-      }
-      ui.repeatValue.placeholder = '';
-      renderRepeat();
-    });
-    ui.repeatPlus.addEventListener('click', () => {
-      playClickSound();
-      repeatDraft = Math.min(MAX_REPEAT, repeatDraft + 1);
-      renderRepeat();
-    });
-    document.addEventListener('visibilitychange', onVisibilityChange);
 
-    // 스페이스바로 시작/일시 정지 (입력칸에 글자를 칠 때나 버튼·토마토에 포커스가 있을 때는 제외)
     document.addEventListener('keydown', (e) => {
+      // Esc: 울리는 알람 끄기
+      if (e.key === 'Escape' && !ui.alarmStop.hidden) {
+        stopAlarm();
+        return;
+      }
+
+      // Space: 시작/일시 정지
+      // (입력칸에 글자를 칠 때, 버튼·토마토·드롭다운에 포커스가 있을 때는 제외)
       if (e.code !== 'Space' || e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
       if (isTypingTarget(e.target)) return;
-      if (e.target instanceof Element && e.target.closest('.dropdown')) return;
-      if (e.target instanceof Element && e.target.closest('button, [role="button"]')) return;
+      if (e.target instanceof Element && e.target.closest('.dropdown, button, [role="button"]')) return;
       e.preventDefault();
       onTomatoClick();
     });
@@ -1083,22 +1100,38 @@
       const btn = e.target instanceof Element && e.target.closest('button, [role="button"]');
       if (btn && e.detail > 0) btn.blur();
     });
+  }
 
+  /* =========================================================
+   * 시작
+   * ======================================================= */
+  function init() {
+    ui.tomato.addEventListener('click', onTomatoClick);
+    ui.applyBtn.addEventListener('click', onApplyClick);
+    ui.resetBtn.addEventListener('click', onResetClick);
+    ui.skipBtn.addEventListener('click', onSkipClick);
+    ui.alarmStop.addEventListener('click', onAlarmStopClick);
+
+    // 탭이 백그라운드에 있는 동안 브라우저가 setInterval을 늦추므로, 다시 보일 때 즉시 시간을 맞춤
+    document.addEventListener('visibilitychange', () => {
+      if (timer.running) tick();
+    });
     // 탭을 닫거나 새로고침하기 직전에도 저장
     window.addEventListener('pagehide', saveState);
+
+    initPresetDropdown();
+    initRepeatStepper();
+    initSettingsCollapse();
+    initKeyboard();
+
+    renderTime(settings.focusMinutes * 60);
+    renderSetCounter();
+    renderRepeat();
+    setPreset(getPreset());
+
+    initMusicPlayer();
+    restoreState();
   }
 
-  bindEvents();
-  renderTime(settings.focusMinutes * 60);
-  renderSetCounter();
-  renderRepeat();
-  setPreset(getPreset());
-  // 모바일은 처음에 접힌 상태로 시작 (사용자가 편 적이 있으면 그 상태 유지)
-  {
-    let saved = null;
-    try { saved = localStorage.getItem(SETTINGS_COLLAPSE_KEY); } catch { saved = null; }
-    setSettingsCollapsed(saved === null ? true : saved === '1');
-  }
-  initMusicPlayer();
-  restoreState();
+  init();
 })();

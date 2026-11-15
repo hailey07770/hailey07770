@@ -714,7 +714,6 @@ body.alarm-ringing .guide {
   height: 52%;
   fill: currentColor;
 }
-.music-btn .icon-play { margin-left: 8%; }
 .music-btn .icon-pause,
 .music-btn.is-playing .icon-play { display: none; }
 .music-btn.is-playing .icon-pause { display: block; }

@@ -578,7 +578,7 @@
     function syncVolumeUI() {
       volumeSlider.value = String(state.volume);
       const isSilent = state.muted || state.volume === 0;
-      muteToggle.textContent = isSilent ? '🔇' : '🔊';
+      muteToggle.classList.toggle('is-muted', isSilent);
       muteToggle.setAttribute('aria-label', isSilent ? '음소거 해제' : '음소거');
       setSliderFill();
     }

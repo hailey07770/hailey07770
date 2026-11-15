@@ -361,7 +361,6 @@ button:active:not(:disabled) {
   background-color: var(--cream);
   border: 2px solid var(--tomato-red);
   border-radius: 999px;
-  box-shadow: 0 6px 25px rgba(254, 248, 210, 0.6), 0 4px 15px rgba(255, 232, 184, 0.4);
   min-height: 50px;
   display: flex;
   align-items: center;

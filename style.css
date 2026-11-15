@@ -452,8 +452,13 @@ button:active:not(:disabled) {
   font-size: 1.1rem;
   opacity: 0.8;
   transition: opacity 0.3s ease;
-  text-align: left;
+  text-align: center;
   line-height: 2.5;
+}
+
+/* 화면에 따라 다른 안내 문구 (모바일엔 스페이스바가 없으니) */
+.mobile-only {
+  display: none;
 }
 
 
@@ -1430,7 +1435,17 @@ input[type="range"].volume-slider {
   .guide {
     font-size: 0.9rem;
     margin-top: -40px;
-    line-height: 1.4;
+    line-height: 1.6;
+    text-align: center;
+    word-break: keep-all;   /* 단어 중간에서 줄이 바뀌지 않게 */
+  }
+
+  .pc-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: inline;
   }
 
   /* 토스트 메시지 (모바일은 줄바꿈 허용) */

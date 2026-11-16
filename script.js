@@ -16,12 +16,14 @@
   const DEFAULT_REPEAT = 0;         // 반복 횟수 기본값: 0 = 무한(∞)
   const MAX_REPEAT = 99;
   const DEFAULT_MUSIC_VOLUME = 0.5;
+  const DEFAULT_ALARM_VOLUME = 1;
   const MOBILE_QUERY = '(max-width: 768px)';
 
   const STORAGE_KEYS = {
     timer: 'pomodoro-state-v1',
     music: 'pomodoro-music-v1',
     settingsCollapsed: 'pomodoro-settings-collapsed',
+    alarmVolume: 'pomodoro-alarm-volume',
   };
 
   const MSG = {
@@ -66,6 +68,12 @@
     repeatValue: $('repeatValue'),
     repeatMinus: $('repeatMinus'),
     repeatPlus: $('repeatPlus'),
+    alarmVolume: $('alarmVolume'),
+    alarmVolToggle: $('alarmVolToggle'),
+    alarmVolLabel: $('alarmVolLabel'),
+    alarmVolValue: $('alarmVolValue'),
+    alarmVolSlider: $('alarmVolSlider'),
+    alarmVolTest: $('alarmVolTest'),
     applyBtn: $('apply-btn'),
     resetBtn: $('reset-btn'),
 
@@ -654,6 +662,67 @@
   }
 
   /* =========================================================
+   * 설정 바 ④ 알람 소리 크기 (바꾸면 바로 적용·저장)
+   * ======================================================= */
+  function initAlarmVolume() {
+    const { alarmVolume: root, alarmVolToggle: toggle, alarmVolSlider: slider } = ui;
+
+    const isOpen = () => root.classList.contains('open');
+
+    function setAlarmVolume(v, { save = true } = {}) {
+      const volume = clamp(Number.isFinite(v) ? v : DEFAULT_ALARM_VOLUME, 0, 1);
+      ui.alarm.volume = volume;
+      const text = `${Math.round(volume * 100)}%`;
+      ui.alarmVolLabel.textContent = text;
+      ui.alarmVolValue.textContent = text;
+      slider.value = String(volume);
+      slider.style.setProperty('--p', `${volume * 100}%`);
+      root.classList.toggle('is-muted', volume === 0);
+      toggle.setAttribute('aria-label', `알람 소리 크기 ${text}`);
+      if (save) storage.set(STORAGE_KEYS.alarmVolume, String(volume));
+    }
+
+    function open() {
+      root.classList.add('open');
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+
+    function close() {
+      root.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    toggle.addEventListener('click', () => {
+      playClickSound();
+      if (isOpen()) close();
+      else open();
+    });
+
+    slider.addEventListener('input', () => setAlarmVolume(Number(slider.value)));
+
+    // 미리 듣기: 지금 크기로 알람을 한 번 울림 (울리는 중이면 처음부터)
+    ui.alarmVolTest.addEventListener('click', () => {
+      stopAlarm();
+      ui.alarm.currentTime = 0;
+      ui.alarm.play().catch(() => {});
+    });
+
+    // 바깥을 누르거나 Esc를 누르면 닫기
+    document.addEventListener('pointerdown', (e) => {
+      if (isOpen() && !root.contains(e.target)) close();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isOpen()) {
+        close();
+        toggle.focus({ preventScroll: true });
+      }
+    });
+
+    const saved = parseFloat(storage.getRaw(STORAGE_KEYS.alarmVolume));
+    setAlarmVolume(Number.isNaN(saved) ? DEFAULT_ALARM_VOLUME : saved, { save: false });
+  }
+
+  /* =========================================================
    * 유튜브 플레이어 (링크를 넣으면 배경음악처럼 반복 재생)
    * ======================================================= */
 
@@ -1122,6 +1191,7 @@
     initPresetDropdown();
     initRepeatStepper();
     initSettingsCollapse();
+    initAlarmVolume();
     initKeyboard();
 
     renderTime(settings.focusMinutes * 60);

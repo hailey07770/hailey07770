@@ -385,6 +385,12 @@ input[type="range"].volume-slider {
   );
 }
 
+/* 가로로 쓰는 슬라이더 (알람 소리 크기) */
+input[type="range"].volume-slider.is-horizontal {
+  width: 100%;
+  transform: none;
+}
+
 /* Webkit */
 .volume-slider::-webkit-slider-runnable-track {
   height: 8px;
@@ -611,6 +617,92 @@ input[type="range"].volume-slider {
 }
 
 /* 적용/초기화: 작고 둥근 알약 버튼 */
+/* 알람 소리 크기: 종 버튼 + 누르면 열리는 작은 창 */
+.alarm-volume {
+  position: relative;
+  z-index: 19;   /* 시간 드롭다운(20) 바로 아래 */
+}
+
+.alarm-vol-toggle {
+  gap: 6px;
+  height: 55px;
+  padding: 0 18px 0 14px;
+  border: 2px solid var(--tomato-red);
+  border-radius: 999px;
+  background: var(--cream);
+  color: #000;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.icon-bell {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  overflow: visible;
+}
+.icon-bell .bell-body { fill: var(--tomato-red); }
+.icon-bell .bell-clapper,
+.icon-bell .bell-off {
+  fill: none;
+  stroke: var(--tomato-red);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.icon-bell .bell-off {
+  stroke: #6b5b55;
+  display: none;
+}
+.alarm-volume.is-muted .bell-body { fill: #c9b8ad; }
+.alarm-volume.is-muted .bell-clapper { stroke: #c9b8ad; }
+.alarm-volume.is-muted .bell-off { display: inline; }
+
+.alarm-vol-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  width: 230px;
+  padding: 14px 16px 16px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(120, 80, 60, 0.16), 0 2px 6px rgba(120, 80, 60, 0.06);
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -6px);
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+}
+
+.alarm-volume.open .alarm-vol-pop {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.alarm-vol-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 15px;
+  color: var(--text-color);
+}
+
+.alarm-vol-head #alarmVolValue {
+  color: var(--tomato-red);
+  font-weight: 700;
+}
+
+.alarm-vol-test {
+  width: 100%;
+  height: 38px;
+  margin-top: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: #f7efe8;
+  color: var(--text-color);
+  font-size: 15px;
+}
+
 #apply-btn,
 #reset-btn {
   height: 55px;
@@ -981,6 +1073,14 @@ body.alarm-ringing .guide {
     background-color: var(--shadow-red);
   }
 
+  .alarm-vol-toggle:hover {
+    border-color: var(--shadow-red);
+  }
+
+  .alarm-vol-test:hover {
+    background-color: #f3e6dc;
+  }
+
   .dropdown-toggle:hover {
     border-color: var(--shadow-red);
   }
@@ -1047,11 +1147,13 @@ body.alarm-ringing .guide {
   .settings {
     gap: calc(15 * var(--u));
     padding: clamp(10px, 2.7vh, calc(25 * var(--u)));
-    margin-bottom: clamp(0px, 1.1vh, calc(10 * var(--u)));
+    /* 테두리선(위아래 1px씩)만큼 아래 여백을 줄여 전체 높이를 그대로 유지 */
+    margin-bottom: clamp(0px, calc(1.1vh - 2px), calc(10 * var(--u) - 2px));
     border-radius: calc(20 * var(--u));
   }
 
   .settings .dropdown-toggle,
+  .settings .alarm-vol-toggle,
   .settings .stepper {
     height: clamp(40px, 6vh, calc(55 * var(--u)));
     font-size: calc(18 * var(--u));
@@ -1059,6 +1161,15 @@ body.alarm-ringing .guide {
 
   .dropdown-toggle {
     padding: 0 calc(16 * var(--u)) 0 calc(18 * var(--u));
+  }
+
+  .alarm-vol-toggle {
+    padding: 0 calc(18 * var(--u)) 0 calc(14 * var(--u));
+  }
+
+  .icon-bell {
+    width: calc(22 * var(--u));
+    height: calc(22 * var(--u));
   }
 
   .dropdown-menu [role="option"] {
@@ -1179,7 +1290,7 @@ body.alarm-ringing .guide {
     left: 0;   /* 큰 화면용 위치값이 남아 옆으로 밀리지 않게 */
     width: auto;
     min-height: 0;
-    margin-bottom: clamp(6px, 1.8vh, 16px);
+    margin-bottom: clamp(4px, calc(1.8vh - 2px), 14px);   /* 테두리선 2px만큼 보정 */
   }
 
   .music-title {
@@ -1312,9 +1423,15 @@ body.alarm-ringing .guide {
   }
 
   .stepper,
-  .dropdown {
+  .dropdown,
+  .alarm-volume,
+  .alarm-vol-toggle {
     width: 100%;
     flex-shrink: 0;
+  }
+
+  .alarm-vol-pop {
+    width: 100%;
   }
 
   .dropdown-toggle {

@@ -1134,6 +1134,38 @@
   }
 
   /* =========================================================
+   * 화면 맞춤 (PC): 내용이 창 높이보다 길면 흰 카드 전체를 같은 비율로 줄임
+   * - 브라우저 확대/축소(80%, 90% 등)나 가로로 넓고 세로로 낮은 창에서도 스크롤이 생기지 않게
+   * - 이미 한 화면에 들어오면 아무것도 바꾸지 않음
+   * ======================================================= */
+  const MIN_FIT_ZOOM = 0.6;   // 이보다 작아지면 글자가 너무 작아지므로 그때는 스크롤 허용
+
+  function fitToViewport() {
+    const card = document.querySelector('.container');
+    card.style.zoom = '';
+    if (isMobileLayout()) return;
+
+    const need = document.documentElement.scrollHeight;
+    const have = window.innerHeight;
+    if (need <= have) return;
+
+    const zoom = Math.max(MIN_FIT_ZOOM, Math.floor((have / need) * 1000) / 1000);
+    card.style.zoom = String(zoom);
+  }
+
+  function initFitToViewport() {
+    let frame = 0;
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fitToViewport);
+    };
+    window.addEventListener('resize', schedule);
+    // 웹폰트가 늦게 로드되면 글자 크기가 바뀌므로 그때 한 번 더
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
+    fitToViewport();
+  }
+
+  /* =========================================================
    * 키보드 단축키
    * ======================================================= */
   const isTypingTarget = (el) =>
@@ -1201,6 +1233,7 @@
 
     initMusicPlayer();
     restoreState();
+    initFitToViewport();
   }
 
   init();
